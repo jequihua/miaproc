@@ -1,0 +1,56 @@
+Metadata-Version: 2.4
+Name: miaproc
+Version: 0.0.1
+Summary: Post-processing of multi-sensor mangrove data streams
+Author: Julián Equihua
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: numpy>=1.24
+Requires-Dist: pandas>=2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+Requires-Dist: mypy>=1.8; extra == "dev"
+Provides-Extra: hesseflux
+Requires-Dist: hesseflux>=5.0; extra == "hesseflux"
+Dynamic: license-file
+
+# miaproc
+
+miaproc is a Python library for preprocessing multiple data streams coming from sensors deployed in mexican mangroves.
+
+## Installation
+
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
+
+```bash
+pip install foobar
+```
+
+## Usage
+
+```python
+import foobar
+
+# returns 'words'
+foobar.pluralize('word')
+
+# returns 'geese'
+foobar.pluralize('goose')
+
+# returns 'phenomenon'
+foobar.singularize('phenomena')
+```
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first
+to discuss what you would like to change.
+
+Please make sure to update tests as appropriate.
+
+## License
+
+[MIT](https://choosealicense.com/licenses/mit/)

@@ -26,6 +26,9 @@ hesseflux = [
   "hesseflux>=5.0"
 ]
 
+biomass = ["pyarrow>=14"
+]
+
 [tool.setuptools]
 package-dir = {"" = "src"}
 

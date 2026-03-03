@@ -7,6 +7,11 @@ src/miaproc.egg-info/SOURCES.txt
 src/miaproc.egg-info/dependency_links.txt
 src/miaproc.egg-info/requires.txt
 src/miaproc.egg-info/top_level.txt
+src/miaproc/biomass/__init__.py
+src/miaproc/biomass/api.py
+src/miaproc/biomass/columns.py
+src/miaproc/biomass/equations.py
+src/miaproc/biomass/safeeval.py
 src/miaproc/eddy/__init__.py
 src/miaproc/eddy/constants.py
 src/miaproc/eddy/core.py

@@ -15,42 +15,249 @@ Requires-Dist: ruff>=0.6; extra == "dev"
 Requires-Dist: mypy>=1.8; extra == "dev"
 Provides-Extra: hesseflux
 Requires-Dist: hesseflux>=5.0; extra == "hesseflux"
+Provides-Extra: biomass
+Requires-Dist: pyarrow>=14; extra == "biomass"
 Dynamic: license-file
 
 # miaproc
 
-miaproc is a Python library for preprocessing multiple data streams coming from sensors deployed in mexican mangroves.
+**miaproc** is a Python library for preprocessing and post-processing multiple environmental data streams coming from sensors deployed in Mexican mangroves.
+
+This package is being developed as part of the ManglarIA initiative — a project supported by WWF Mexico and Google, focused on monitoring, modeling, and protecting mangrove ecosystems in a rapidly changing climate.
+
+More about the project:  
+https://www.worldwildlife.org/descubre-wwf/historias/manglaria-utilizando-inteligencia-artificial-para-salvar-los-manglares-en-un-clima-en-constante-cambio
+
+---
+
+## Current Status
+
+At this stage, `miaproc` includes:
+
+- Basic preprocessing utilities for environmental time series.
+- A complete workflow for eddy covariance tower data (`miaproc.eddy`), including:
+  - Data ingestion (multiple CSVs)
+  - QC filtering
+  - Rain filtering
+  - Outlier detection (3σ)
+  - Time standardization to 30-minute grid
+  - USTAR filtering (fixed threshold)
+  - MDS gap filling
+  - Flux partitioning (NEE → GPP + RECO)
+
+Future sensor modules will be added progressively.
+
+---
 
 ## Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
+### Basic Installation
 
 ```bash
-pip install foobar
+pip install git+https://github.com/jequihua/miaproc.git
 ```
+
+Or clone locally and install in editable mode:
+
+```bash
+git clone https://github.com/jequihua/miaproc.git
+cd miaproc
+pip install -e .
+```
+
+---
+
+### Optional: Install with hesseflux engine
+
+For eddy covariance post-processing (USTAR filtering, MDS gap filling, partitioning):
+
+```bash
+pip install -e ".[hesseflux]"
+```
+
+This installs the optional dependency:
+
+- `hesseflux` (pure Python implementation of standard EC post-processing methods)
+
+---
 
 ## Usage
 
+### Stage 1: Load and clean eddy covariance data
+
 ```python
-import foobar
+from miaproc.eddy import load_stage1
 
-# returns 'words'
-foobar.pluralize('word')
-
-# returns 'geese'
-foobar.pluralize('goose')
-
-# returns 'phenomenon'
-foobar.singularize('phenomena')
+df_stage1 = load_stage1(
+    path_full_output="path/to/full_output_folder",
+    path_biomet="path/to/biomet_folder",
+    tz_in="UTC",
+    tz_out="UTC",
+    skip_full_output=0,  # set to 1 if your export has a units row
+    skip_biomet=0,
+)
 ```
+
+This performs:
+
+- File aggregation
+- Timestamp parsing
+- QC filtering
+- Rain filtering
+- 3σ outlier removal
+- Standardization to a continuous 30-minute grid
+
+---
+
+### Stage 2: USTAR filtering, gap filling and partitioning
+
+```python
+from miaproc.eddy import postproc, HessefluxConfig
+
+df_final = postproc(
+    df_stage1,
+    engine="hesseflux",
+    hesseflux_config=HessefluxConfig(
+        ustar_fixed=0.1,
+        partition_method="reichstein",
+    ),
+)
+```
+
+This produces:
+
+- `NEE_f` (gap-filled NEE)
+- `NEE_fqc` (fill quality class)
+- `SW_IN_f`, `TA_f`, `VPD_f` (gap-filled drivers)
+- `GPP`
+- `RECO`
+
+---
+
+## Scientific Notes
+
+### USTAR Filtering
+
+Because short time series may not allow robust estimation of u* thresholds, the current implementation:
+
+- Uses a fixed u* threshold (default = 0.1 m/s).
+- Masks nighttime NEE when `USTAR < threshold`.
+
+This mirrors the workaround commonly applied when less than 90 days of data are available.
+
+Future versions may support dynamic u* estimation when long records are available.
+
+---
+
+### Gap Filling
+
+Gap filling uses the MDS method (Reichstein et al. 2005) via `hesseflux`.
+
+Drivers used:
+
+- SW_IN (radiation, W m⁻²)
+- TA (air temperature, °C)
+- VPD (hPa)
+
+---
+
+### Flux Partitioning
+
+Partitioning uses:
+
+```
+method="reichstein"
+```
+
+Other supported methods (via hesseflux):
+
+- `"lasslop"`
+- `"falge"`
+
+Units are automatically converted internally as required by the partitioning method.
+
+---
+
+## Required Columns for miaproc.eddy
+
+The stage-1 dataframe must contain:
+
+- `DateTime`
+- `NEE`
+- `USTAR`
+- `Tair`
+- `VPD`
+- `Rg`
+- `QC_NEE`
+
+All numeric values must use consistent units:
+
+- Tair in °C (internally converted as needed)
+- VPD in hPa
+- Radiation in W m⁻²
+- USTAR in m s⁻¹
+
+---
+
+## Development
+
+Create a virtual environment:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# .venv\Scripts\activate   # Windows
+```
+
+Install development tools:
+
+```bash
+pip install -e ".[dev,hesseflux]"
+```
+
+Run tests:
+
+```bash
+pytest -q
+```
+
+---
+
+## Project Structure
+
+```
+miaproc/
+├── eddy/
+│   ├── core.py
+│   ├── io.py
+│   ├── time.py
+│   ├── qc.py
+│   ├── engine_hesseflux.py
+│   ├── engines.py
+│   └── constants.py
+```
+
+---
+
+## Roadmap
+
+- Add REddyProc engine via rpy2 (optional backend)
+- Add additional sensor modules
+- Improve uncertainty propagation
+- Add CLI interface
+- Automated metadata export
+- Dockerized processing environment
+
+---
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 Please make sure to update tests as appropriate.
 
+---
+
 ## License
 
-[MIT](https://choosealicense.com/licenses/mit/)
+MIT License

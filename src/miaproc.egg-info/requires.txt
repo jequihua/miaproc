@@ -1,6 +1,9 @@
 numpy>=1.24
 pandas>=2.0
 
+[biomass]
+pyarrow>=14
+
 [dev]
 pytest>=8.0
 ruff>=0.6

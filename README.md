@@ -7,6 +7,153 @@ This package is being developed as part of the ManglarIA initiative — a projec
 More about the project:  
 https://www.worldwildlife.org/descubre-wwf/historias/manglaria-utilizando-inteligencia-artificial-para-salvar-los-manglares-en-un-clima-en-constante-cambio
 
+### Current modules
+
+- Tree level biomass estimation
+- Eddy covariance data preprocessing
+
+
+---
+
+## 🌳 Biomass Module (`miaproc.biomass`)
+
+`miaproc.biomass` provides tree-level volume estimation using species-specific allometric equations.
+
+It is designed for mangrove forest structure datasets where each row represents a tree with:
+
+- Species name
+- DBH (cm)
+- Total height (m)
+
+Allometric equations are distributed with the package (Parquet format) and are evaluated dynamically using NumPy.
+
+---
+
+### Key Features
+
+- Species-specific equation matching
+- Filtering by Mexican state (`estado`)
+- Automatic selection of minimum available assignment level (`nivel_asignacion`)
+- Safe evaluation of stored NumPy-ready equations (`ecuacion_numpy`)
+- Range checking for DBH and height (warn / clip / error / ignore)
+- Full traceability of which equation was used
+- Optional override with custom equations
+
+Currently, the module estimates **volume (m³)** via the `response_variable` field (e.g., `VRTAcc_m3`).  
+Future versions may include biomass and carbon conversion.
+
+---
+
+### Required Input Columns
+
+Your dataframe must contain:
+
+- Species (e.g., `"Avicennia germinans"`)
+- DBH in cm
+- Height in meters
+
+Example column mapping:
+
+```python
+from miaproc.biomass import BiomassColumns
+
+cols = BiomassColumns(
+    species="Species",
+    dbh_cm="DBH (cm)",
+    height_m="Total Height (m)",
+)
+```
+
+If height is missing, the estimate will return NaN.
+
+Basic Usage
+from miaproc.biomass import (
+    load_packaged_equations,
+    estimate_trees,
+    BiomassColumns,
+)
+
+# Load packaged allometric equations
+equations = load_packaged_equations()
+
+# Estimate volume
+out = estimate_trees(
+    df,
+    equations=equations,
+    estado="Yucatán",
+    columns=BiomassColumns(),
+    response_variable="VRTAcc_m3",
+    range_policy="warn",
+)
+
+out.head()
+
+The output includes:
+
+estimate_response_variable
+
+match_status
+
+range_status
+
+clave_ecuacion
+
+nivel_asignacion
+
+estado_ecuacion_usada
+
+fuente_referencia
+
+Custom Equation Override
+
+You can bypass parquet matching entirely:
+
+out = estimate_trees(
+    df,
+    equations=equations,
+    estado="Yucatán",
+    custom_function="np.exp(-10 + 1.9*np.log(diam) + 1.0*np.log(alt))",
+)
+
+Or define species-specific custom equations:
+
+custom = {
+    "Avicennia germinans": "np.exp(-10.1 + 1.97*np.log(diam) + 1.05*np.log(alt))",
+    "Rhizophora mangle": "0.00006*np.power(diam,2.05)*np.power(alt,0.80)",
+}
+
+out = estimate_trees(
+    df,
+    equations=equations,
+    estado="Yucatán",
+    custom_function=custom,
+)
+
+If a species is included in custom_function, parquet matching is skipped for that species.
+
+Scientific Notes
+
+DBH must be in cm
+
+Height must be in meters
+
+Range validation uses equation-specific DBH/height bounds when available
+
+Fallback logic:
+
+Match estado
+
+If not found, fallback to any state for that species
+
+Future versions may add:
+
+Ecoregion-based fallback
+
+Geographic proximity search
+
+Biomass and carbon conversion
+
+Species name normalization
 ---
 
 ## Current Status

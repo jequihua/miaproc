@@ -12,6 +12,8 @@ src/miaproc/biomass/api.py
 src/miaproc/biomass/columns.py
 src/miaproc/biomass/equations.py
 src/miaproc/biomass/safeeval.py
+src/miaproc/biomass/data/__init__.py
+src/miaproc/biomass/data/allometries_mx.parquet
 src/miaproc/eddy/__init__.py
 src/miaproc/eddy/constants.py
 src/miaproc/eddy/core.py

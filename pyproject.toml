@@ -35,5 +35,8 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"miaproc.biomass" = ["data/*.parquet"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

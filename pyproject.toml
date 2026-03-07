@@ -12,7 +12,7 @@ license = {text = "MIT"}
 authors = [{name = "Julián Equihua"}]
 dependencies = [
   "numpy>=1.24",
-  "pandas>=2.0",
+  "pandas>=2.0,<3.0"
 ]
 
 [project.optional-dependencies]
@@ -26,7 +26,8 @@ hesseflux = [
   "hesseflux>=5.0"
 ]
 
-biomass = ["pyarrow>=14"
+biomass = [
+  "pyarrow>=14"
 ]
 
 [tool.setuptools]

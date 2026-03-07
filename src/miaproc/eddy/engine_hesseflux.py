@@ -7,6 +7,12 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
+# Compatibility patch for older libraries expecting np.int and np.float
+if not hasattr(np, "int"):
+    np.int = int
+if not hasattr(np, "float"):
+    np.float = float
+
 # hesseflux is an optional dependency
 try:
     import hesseflux as hf
@@ -117,6 +123,11 @@ def run_hesseflux_engine(
     _require_hesseflux()
 
     base = df_stage1.copy()
+
+    # Work around pandas/hesseflux compatibility issue where hesseflux
+    # receives read-only NumPy views from pandas objects.
+    old_cow = pd.options.mode.copy_on_write
+    pd.options.mode.copy_on_write = False
 
     # 1) Prepare and numeric-ize
     dfin0 = _prepare_hesseflux_frame(base)

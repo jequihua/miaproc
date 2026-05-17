@@ -12,22 +12,36 @@ license = {text = "MIT"}
 authors = [{name = "Julián Equihua"}]
 dependencies = [
   "numpy>=1.24",
-  "pandas>=2.0,<3.0"
+  "pandas>=2.0,<3.0",
 ]
+
+[project.scripts]
+miaproc = "miaproc.cli:main"
 
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
   "ruff>=0.6",
-  "mypy>=1.8"
+  "mypy>=1.8",
 ]
 
 hesseflux = [
-  "hesseflux>=5.0"
+  "hesseflux>=5.0",
 ]
 
 biomass = [
-  "pyarrow>=14"
+  "pyarrow>=14",
+]
+
+reddyproc = [
+  "rpy2",
+]
+
+bigquery = [
+  "google-cloud-bigquery>=3.20",
+  "google-cloud-bigquery-storage>=2.24",
+  "db-dtypes>=1.2",
+  "pyarrow>=14",
 ]
 
 [tool.setuptools]
@@ -41,3 +55,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "reddyproc: tests requiring R, REddyProc, and rpy2",
+  "integration: larger integration or case-study tests",
+  "slow: long-running tests",
+]

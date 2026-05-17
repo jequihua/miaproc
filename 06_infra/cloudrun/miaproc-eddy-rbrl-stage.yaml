@@ -1,0 +1,93 @@
+# Cloud Run Job manifest: miaproc eddy run-bigquery, RBRL, stage-only
+# (M11 manual cloud deployment).
+#
+# DEPRECATED PRE-M24 SHAPE: this manifest passes ``--site-id=RBRL``
+# and a per-site stage table name (``cf_s2_stage_rbrl``). Under M24
+# the CLI no longer accepts ``--site-id``; processing every site is
+# the default and ``--group-column site_id`` partitions the read.
+# This manifest is preserved as the cloud-validated M11/M12/M13
+# audit trail under its pinned ``sha256:0db1b2d96fa…3408`` digest --
+# that digest accepts the pre-M24 args; a fresh post-M24 image will
+# not. New deployments should use the M24-shaped BigQuery split
+# manifests (``miaproc-eddy-rbrl-bigquery-silver.yaml`` and
+# ``miaproc-eddy-rbrl-bigquery-gold-{stage,merge}.yaml``) which
+# already use ``--group-column site_id`` and shared stage tables.
+#
+# Purpose: stage processed RBRL output into
+# manglaria-staging.manglaria_lakehouse_ds.cf_s2_stage_rbrl plus the
+# orchestration control tables under manglaria-staging._orch. Does NOT
+# pass --bq-allow-final-merge -- safe for routine operator execution.
+#
+# To deploy / update this job:
+#   gcloud run jobs replace 06_infra/cloudrun/miaproc-eddy-rbrl-stage.yaml \
+#     --region=us-central1 --project=manglaria-staging
+#
+# To execute (one-shot, blocking on completion):
+#   gcloud run jobs execute miaproc-eddy-rbrl-stage \
+#     --region=us-central1 --project=manglaria-staging --wait
+#
+# Service account is the dedicated cf-s2-eddy-runner@... identity in
+# manglaria-staging (M12). The operator can ``gcloud run jobs
+# replace`` this manifest because they own the SA and therefore can
+# ``actAs`` it; **execution** will currently fail with
+# ``bigquery.jobs.create denied`` until a Project-IAM-Admin runs the
+# four bindings documented in 06_infra/cloudrun/iam-grants-required.md
+# and 06_infra/deployment.md (M12 IAM rollout is blocked pending
+# Project-IAM-Admin handoff). Production project ``manglaria`` stays
+# read-only either way -- the failure mode is in front of any write,
+# and the writeback module's
+# ``forbidden_write_projects=("manglaria",)`` invariant still
+# prevents an accidental cross-project write at the code layer.
+#
+# Image is pinned by digest, not tag. See 06_infra/deployment.md for
+# the publish workflow that produces the digest.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-rbrl-stage
+  namespace: manglaria-staging
+  labels:
+    app: miaproc
+    domain: eddy
+    site: rbrl
+    stage: writeback-stage-only
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: cf-s2-eddy-runner@manglaria-staging.iam.gserviceaccount.com
+          maxRetries: 0
+          timeoutSeconds: 1800  # 30m; live RBRL run is ~75s + headroom
+          containers:
+          - name: miaproc
+            image: us-central1-docker.pkg.dev/manglaria-staging/cloud-run-source-deploy/miaproc@sha256:0db1b2d96fa4640ab5625ac470afbaaa52df689876f04c6bb321be288b0b3408
+            command:
+            - miaproc
+            args:
+            - eddy
+            - run-bigquery
+            - --engine=reddyproc-reference
+            - --bq-input-project=manglaria
+            - --bq-input-dataset=manglaria_lakehouse_ds
+            - --bq-flux-table=carbon_flux_eddycovariance
+            - --bq-biomet-table=carbon_flux_biomet
+            - --bq-billing-project=manglaria-staging
+            - --site-id=RBRL
+            - --repo-root=/app
+            - --bq-output-project=manglaria-staging
+            - --bq-output-dataset=manglaria_lakehouse_ds
+            - --bq-stage-table=cf_s2_stage_rbrl
+            - --bq-control-dataset=_orch
+            - --output-table=/tmp/processed.parquet
+            - --output-diagnostics-json=/tmp/diagnostics.json
+            - --output-run-json=/tmp/run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: manglaria-staging
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi

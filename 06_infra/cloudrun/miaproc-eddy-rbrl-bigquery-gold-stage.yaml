@@ -1,0 +1,89 @@
+# Cloud Run Job manifest: miaproc eddy run-bigquery-gold, all sites,
+# stage-only (M24 all-data grouped gold stage-only job — DRAFT example).
+#
+# Purpose: read the shared all-site silver-stage eddy table written by
+# the M24 silver job at
+# `manglaria-staging.manglaria_lakehouse_ds.cf_s2_silver_stage`, run
+# the bundled `reddyproc-reference` engine through the project-scoped
+# R preflight (Decision 010 / R11) for every site present, and stage
+# stacked all-site processed gold output into
+# `manglaria-staging.manglaria_lakehouse_ds.cf_s2_gold_stage` plus a
+# runs row in `manglaria-staging._orch.cf_s2_runs`. Does NOT pass
+# --bq-allow-final-merge — safe for routine operator execution.
+#
+# M24: --site-id is no longer a CLI flag and the silver BigQuery
+# read does not inject a WHERE site_id filter. `--group-column site_id`
+# partitions the silver read into per-category gold runs in Python
+# and stacks the per-category gold outputs once into the shared gold
+# stage table. The shared stage table name (`cf_s2_gold_stage`, no
+# per-site suffix) is now valid because writeback is invoked once
+# against the stacked output rather than once per site.
+#
+# Pair this manifest with `miaproc-eddy-rbrl-bigquery-gold-merge.yaml`
+# for the explicit-merge variant. The two jobs are deployed and
+# executed separately so accidental re-execution of the routine
+# stage-only job cannot MERGE.
+#
+# Status: DRAFT example. Image is pinned to the M23 immutable digest.
+# Operator-owned items the cloud engineer must replace before live
+# deployment:
+#
+# - `serviceAccountName` (cf-s2-eddy-runner reused here as a draft;
+#   live IAM bindings under 06_infra/cloudrun/iam-grants-required.md);
+# - `--bq-silver-table=cf_s2_silver_stage` and
+#   `--bq-stage-table=cf_s2_gold_stage` (shared all-site identifiers;
+#   per-site suffixes are no longer required under M24);
+# - region / namespace / resource limits if they differ;
+# - --bq-start-timestamp / --bq-end-timestamp window if bounded.
+#
+# This manifest has NOT been validated against a live BigQuery
+# environment under M24; it is a sketch intended to ride alongside
+# the accepted one-shot manifests.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-bigquery-gold-stage
+  namespace: manglaria-staging
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: bigquery-gold-stage-only
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: cf-s2-eddy-runner@manglaria-staging.iam.gserviceaccount.com
+          maxRetries: 0
+          timeoutSeconds: 1800
+          containers:
+          - name: miaproc
+            image: us-central1-docker.pkg.dev/manglaria-staging/cloud-run-source-deploy/miaproc@sha256:a59f763246bcc08ccb2b82f40309f98850de53f898533c8c5ac0c69a53acd36f
+            command:
+            - miaproc
+            args:
+            - eddy
+            - run-bigquery-gold
+            - --engine=reddyproc-reference
+            - --bq-input-project=manglaria-staging
+            - --bq-input-dataset=manglaria_lakehouse_ds
+            - --bq-silver-table=cf_s2_silver_stage
+            - --bq-billing-project=manglaria-staging
+            - --group-column=site_id
+            - --repo-root=/app
+            - --bq-output-project=manglaria-staging
+            - --bq-output-dataset=manglaria_lakehouse_ds
+            - --bq-stage-table=cf_s2_gold_stage
+            - --bq-control-dataset=_orch
+            - --output-table=/tmp/gold.parquet
+            - --output-diagnostics-json=/tmp/gold_diag.json
+            - --output-run-json=/tmp/gold_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: manglaria-staging
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi

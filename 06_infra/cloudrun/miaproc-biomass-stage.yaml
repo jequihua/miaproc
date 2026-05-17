@@ -1,0 +1,78 @@
+# Draft Cloud Run Job manifest: miaproc biomass run-bigquery, stage-only
+# (M21 biomass handoff cleanup).
+#
+# Purpose: read the operator-established biomass source table from
+# production, enrich it in memory, write local artifacts to /tmp, and
+# stage the enriched rows into a staging BigQuery table. It omits the
+# explicit merge opt-in flag, so it is safe for routine operator execution.
+#
+# PLACEHOLDERS TO ESTABLISH BEFORE USE:
+# - --bq-input-table=forest_structure_biomass_SOURCE_PLACEHOLDER
+# - --bq-stage-table=biomass_stage_PLACEHOLDER
+# - --bq-merge-key=primary_key, unless operators establish another
+#   stable per-tree identity column.
+# - serviceAccountName, if the final runtime identity differs.
+#
+# To deploy / update this draft job:
+#   gcloud run jobs replace 06_infra/cloudrun/miaproc-biomass-stage.yaml \
+#     --region=us-central1 --project=manglaria-staging
+#
+# To execute (one-shot, blocking on completion):
+#   gcloud run jobs execute miaproc-biomass-stage \
+#     --region=us-central1 --project=manglaria-staging --wait
+#
+# Image digest is the M23 rebuild published to Artifact Registry on
+# 2026-05-07 from commit 183257b. The M21 image
+# (sha256:a6ca5fdc…be5b8) was deleted from Artifact Registry in M23
+# as part of the eddy cloud-handoff refresh, so this manifest had to
+# be re-pinned to keep the cloudrun directory coherent. The M23
+# image is biomass-functionally-equivalent to the M21 image (same
+# biomass package code, smoke confirmed canonical M17/M17A
+# 3457/1799/1658 fixture counts) and additionally exposes
+# `miaproc eddy run-bigquery-silver` / `run-bigquery-gold`. Re-pin
+# again if a later cloud validation pass produces a newer digest.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-biomass-stage
+  namespace: manglaria-staging
+  labels:
+    app: miaproc
+    domain: biomass
+    stage: writeback-stage-only
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: cf-biomass-runner@manglaria-staging.iam.gserviceaccount.com
+          maxRetries: 0
+          timeoutSeconds: 1800
+          containers:
+          - name: miaproc
+            image: us-central1-docker.pkg.dev/manglaria-staging/cloud-run-source-deploy/miaproc@sha256:a59f763246bcc08ccb2b82f40309f98850de53f898533c8c5ac0c69a53acd36f
+            command:
+            - miaproc
+            args:
+            - biomass
+            - run-bigquery
+            - --bq-input-project=manglaria
+            - --bq-input-dataset=manglaria_lakehouse_ds
+            - --bq-input-table=forest_structure_biomass_SOURCE_PLACEHOLDER
+            - --bq-billing-project=manglaria-staging
+            - --bq-output-project=manglaria-staging
+            - --bq-output-dataset=manglaria_lakehouse_ds
+            - --bq-stage-table=biomass_stage_PLACEHOLDER
+            - --bq-control-dataset=_orch
+            - --bq-merge-key=primary_key
+            - --output-table=/tmp/enriched.parquet
+            - --output-run-json=/tmp/run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: manglaria-staging
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi

@@ -1,0 +1,98 @@
+[
+  {
+    "name": "primary_key",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Stage identity. Synthesized as '<site_id>|<iso_utc_timestamp>' by miaproc.cli._prepare_processed_for_stage when run-bigquery-silver writes to BigQuery. Uniqueness on this column is equivalent to (site_id, timestamp) uniqueness by construction; validate_stage_table aborts the writeback if either is violated."
+  },
+  {
+    "name": "site_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Site identifier. Per-row category value: under the M24 all-data grouped CLI, --group-column site_id partitions the all-data BigQuery read into per-category silver runs; each per-category run uses its group's category as the stage-identity site_id, and the per-group silver stage frames are concatenated into one stacked payload before silver writeback. Legacy single-site programmatic callers may still pass an explicit site_id to the package-level helpers."
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Half-hour observation timestamp in UTC, regularized to the continuous 30-minute grid by miaproc.eddy.time.regularize_time_grid. Equal to DateTime when staged."
+  },
+  {
+    "name": "DateTime",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Tz-aware half-hour timestamp. The legacy stage-1 / stage-2 join key the package was built around; preserved alongside `timestamp` so downstream consumers reading by either name keep working. run-bigquery-gold reads silver back from BigQuery on this column."
+  },
+  {
+    "name": "NEE",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Net ecosystem exchange (renamed from co2_flux). Pre-backend: rows where qc_co2_flux=2, P_RAIN>0, or |x-mean| > 3*sigma have been masked but no gap filling has run yet."
+  },
+  {
+    "name": "QC_NEE",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Renamed from qc_co2_flux. Carried through silver so an auditor can re-derive the QC mask state."
+  },
+  {
+    "name": "Tair",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air temperature in degrees C (unit-converted from K by miaproc.eddy.qc.convert_units). Renamed from air_temperature."
+  },
+  {
+    "name": "USTAR",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Friction velocity in m/s. Renamed from u_star (or u.). Drives the dynamic-u* plateau estimator (Decision 009) on the gold side."
+  },
+  {
+    "name": "VPD",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Vapor pressure deficit in hPa. Pass-through; driver for MDS gap filling and Lasslop partitioning on the gold side."
+  },
+  {
+    "name": "Rg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Incoming shortwave radiation in W/m^2 (renamed from SWIN_1_1_1). Pass-through driver for gold."
+  },
+  {
+    "name": "P_RAIN",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Half-hour precipitation in mm (renamed from P_RAIN_1_1_1). Already used to mask flux rows; pass-through into silver for audit."
+  },
+  {
+    "name": "rH",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Relative humidity in percent (renamed from RH_1_1_1). Silver-only pass-through; carried into gold via _attach_silver_columns_to_gold."
+  },
+  {
+    "name": "H",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Sensible heat flux. Silver-only; not part of the 13-col gold backend contract but reattached on the gold output via the M14 column-preservation helper."
+  },
+  {
+    "name": "qc_H",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro QC class for H."
+  },
+  {
+    "name": "LE",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Latent heat flux. Silver-only; reattached on gold output."
+  },
+  {
+    "name": "qc_LE",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro QC class for LE."
+  }
+]

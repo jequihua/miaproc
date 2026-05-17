@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from typing import Iterable
 
 import pandas as pd
 
@@ -18,12 +17,16 @@ _ALLOWED_FORMATS = (
 def _parse_datetime_multi(s: pd.Series) -> pd.Series:
     """
     Try multiple formats in order, filling remaining NaT each time.
+
+    The returned series preserves the input's index. This matters when the
+    caller has filtered rows (e.g. by ``site_id``) and the input index is no
+    longer a simple ``RangeIndex``.
     """
-    out = pd.to_datetime(pd.Series([pd.NaT] * len(s)), errors="coerce")
-    remaining = pd.Series([True] * len(s))
+    idx = s.index
+    out = pd.Series([pd.NaT] * len(s), index=idx, dtype="datetime64[ns]")
+    remaining = pd.Series([True] * len(s), index=idx)
     for fmt in _ALLOWED_FORMATS:
         parsed = pd.to_datetime(s.where(remaining), format=fmt, errors="coerce")
-        # fill where we parsed successfully
         ok = parsed.notna()
         out.loc[ok] = parsed.loc[ok]
         remaining = out.isna()
@@ -32,40 +35,70 @@ def _parse_datetime_multi(s: pd.Series) -> pd.Series:
     return out
 
 
+def _parse_timestamp_col(s: pd.Series) -> pd.Series:
+    """
+    Parse a single combined timestamp column (e.g. ``"2025-10-25 08:00:00 UTC"``).
+
+    Uses pandas' format inference so trailing timezone abbreviations like
+    ``UTC`` are honored. Unparseable values become ``NaT``. The returned
+    series preserves the input's index.
+    """
+    return pd.to_datetime(s, errors="coerce")
+
+
 def create_datetime(
     df: pd.DataFrame,
     *,
     date_col: str = "date",
     time_col: str = "time",
+    timestamp_col: str = "timestamp",
     tz_in: str = "UTC",
     tz_out: str = "UTC",
     warn_dups: bool = True,
     drop_unparsed: bool = True,
 ) -> pd.DataFrame:
     """
-    Replicates R create_datetime():
-      - requires date + time
-      - trims strings
-      - parses with multiple formats
-      - drops rows with failed parse
-      - applies tz conversion (with_tz in R)
-      - drops duplicate DateTime (keep first) and warns
+    Build a ``DateTime`` column from either legacy ``date + time`` or the
+    case-study ``timestamp`` shape.
+
+    Parsing priority:
+
+    1. If both ``date_col`` and ``time_col`` exist, use the legacy R
+       ``create_datetime`` pathway: string-trim, try multiple formats,
+       drop unparsed, deduplicate.
+    2. Else if ``timestamp_col`` exists, parse that column directly
+       (pandas infers common formats, including tz-suffixed strings like
+       ``"2025-10-25 08:00:00 UTC"``).
+    3. Else raise ``ValueError`` naming all three candidate columns.
+
+    Timezone behavior is identical for both paths:
+
+    - naive timestamps are localized to ``tz_in``, then converted to ``tz_out``;
+    - tz-aware timestamps are converted to ``tz_in`` (a no-op when the
+      source is already UTC), then to ``tz_out``.
     """
-    if date_col not in df.columns or time_col not in df.columns:
-        raise ValueError("ERROR: Data does not contain 'date' and 'time'")
+    has_legacy = date_col in df.columns and time_col in df.columns
+    has_timestamp = timestamp_col in df.columns
+    if not has_legacy and not has_timestamp:
+        raise ValueError(
+            "ERROR: Data contains neither legacy 'date'+'time' columns nor "
+            "'timestamp' column; cannot build DateTime."
+        )
 
     out = df.copy()
 
-    # Ensure string-like and trim
-    out[date_col] = out[date_col].astype(str).str.strip()
-    out[time_col] = out[time_col].astype(str).str.strip()
-
-    dt_str = out[date_col] + " " + out[time_col]
-    parsed = _parse_datetime_multi(dt_str)
+    if has_legacy:
+        # Ensure string-like and trim
+        out[date_col] = out[date_col].astype(str).str.strip()
+        out[time_col] = out[time_col].astype(str).str.strip()
+        dt_str = out[date_col] + " " + out[time_col]
+        parsed = _parse_datetime_multi(dt_str)
+    else:
+        parsed = _parse_timestamp_col(out[timestamp_col])
 
     # Apply tz_in then convert to tz_out:
     # - If timestamps are "naive" but represent tz_in, localize
-    # - If already tz-aware (rare in CSV), normalize
+    # - If already tz-aware (CSV with timezone suffix), normalize
     if parsed.dt.tz is None:
         parsed = parsed.dt.tz_localize(tz_in, ambiguous="NaT", nonexistent="NaT")
     else:

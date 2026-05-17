@@ -1,31 +1,84 @@
-# Virtual environments
+# Python / package build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+
+# Virtual environments and local env files
 .venv/
 venv/
 env/
+.env
 
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Test / coverage
+# Test / lint / type-check caches
 .pytest_cache/
+.tmp_pytest_basetemp*/
 .coverage
 htmlcov/
-
-# Type checker / linter
 .mypy_cache/
 .ruff_cache/
 
-# Build artifacts
-build/
-dist/
-*.egg-info/
+# Local run outputs and operator scratch space
+.runs/
+out/
+outputs/
+tmp/
+.cache/
+logs/
 
-# Jupyter
+# Local credentials and cloud auth material must never be committed
+*.jsonl
+*credentials*.json
+*service-account*.json
+application_default_credentials.json
+.config/gcloud/
+gcloud/
+*.pem
+*.key
+*.p12
+*.pfx
+*.kubeconfig
+kubeconfig
+secrets/
+
+# Artifact-first development workspace material that does not belong in the
+# standalone package repo. Keep public decision/risk records tracked when
+# explicitly synced, but not local review transcripts or prompt workspaces.
+.claude/
+prompts/
+03_experiments/
+04_reviews/
+05_governance/reviews/
+05_governance/review_log.md
+90_legacy_review/
+general_tasks_description.md
+glossary.md
+
+# Local/raw data exports are not package fixtures. Tests own their curated
+# fixtures under tests/data/.
+01_data/
+02_data/
+raw/
+claims/
+pages/
+state/
+schema/
+corpus/
+
+# R / renv runtime payloads. Keep renv.lock tracked; do not track installed libs.
+renv/library/
+renv/staging/
+renv/python/
+.Rproj.user/
+
+# Jupyter / editors / OS
 .ipynb_checkpoints/
-
-# OS
+notebooks/
+*.ipynb
+.vscode/
+.idea/
 .DS_Store
 Thumbs.db

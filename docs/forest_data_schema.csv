@@ -1,0 +1,30 @@
+field,mode,description,code
+primary_key,STRING,REQUIRED,Unique identifier for the register.
+study_id,STRING,REQUIRED,Unique identifier for the study.
+mangrove_type,STRING,REQUIRED,Structural/ecological type of mangrove system. Variables: fringe; basin; riverine; overwash; dwarf
+site_condition,STRING,REQUIRED,Ecological condition category of site. Variables: restored; conserved; degraded
+country,STRING,NULLABLE,Country or territory identification.
+protected_area,STRING,REQUIRED,Protected area designation.
+location,STRING,NULLABLE,Locality name.
+site_id,STRING,REQUIRED,Unique site identifier.
+manglaria_site_id,STRING,REQUIRED,ManglarIA project-specific site ID.
+date_of_collection,DATE,REQUIRED,Date of data collection. Unit: DD/MM/YYYY
+latitude,FLOAT,REQUIRED,Latitude coordinate. Unit: decimal degrees
+longitude,FLOAT,REQUIRED,Longitude coordinate. Unit: decimal degrees
+plot_id,STRING,REQUIRED,Plot identifier.
+plot_length_x_m,NUMERIC,NULLABLE,Plot length x. Unit: m
+plot_length_y_m,NUMERIC,NULLABLE,Plot length y. Unit: m
+plot_area_m2,NUMERIC,REQUIRED,Plot area. Unit: m2
+position_method,FLOAT,NULLABLE,Method used to obtain coordinates.
+species,STRING,NULLABLE,Scientific species name.
+species_code,STRING,NULLABLE,Species identification code.
+dbh_cm,FLOAT,NULLABLE,Diameter at breast height. Unit: cm
+tree_height_m,FLOAT,NULLABLE,Total tree height. Unit: m
+root_height_m,FLOAT,NULLABLE,Height of exposed roots or prop roots. Unit: m
+stump_diameter,FLOAT,NULLABLE,Diameter of stump. Unit: cm
+stump_height,FLOAT,NULLABLE,Height of stump. Unit: cm
+life_stage,STRING,NULLABLE,Life stage classification. Variables: Juvenile; Adult
+condition,STRING,NULLABLE,Tree condition. Variables: Live; Dead
+tree_height_method,STRING,NULLABLE,Method used to measure height. Variables: rod; clinometer
+presence_invasive_sp,STRING,NULLABLE,Presence of Cissus verticilata liana.
+girth_cm,FLOAT,NULLABLE,Tree girth. Unit: cm

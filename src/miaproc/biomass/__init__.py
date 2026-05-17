@@ -1,11 +1,60 @@
 from .columns import BiomassColumns
 from .equations import load_equations, load_packaged_equations
-from .api import estimate_tree, estimate_trees
+from .api import (
+    DEFAULT_BIOMASS_ESTIMATE_COL,
+    DEFAULT_EQUATION_USED_COL,
+    enrich_table,
+    estimate_tree,
+    estimate_trees,
+)
+from .bigquery_runner import (
+    BigQueryBiomassConfig,
+    BigQueryBiomassReadResult,
+    MissingBigQueryDependencyError,
+    build_input_query,
+    read_bigquery_input,
+)
+from .bigquery_writeback import (
+    BigQueryBiomassWritebackConfig,
+    WritebackResult,
+    WritebackValidationError,
+    build_merge_statement,
+    build_validation_query,
+    ensure_control_tables_exist,
+    merge_stage_into_final,
+    prepare_stage_dataframe,
+    record_run_row,
+    render_runs_table_ddl,
+    run_writeback,
+    validate_stage_table,
+    write_enriched_to_stage,
+)
 
 __all__ = [
     "BiomassColumns",
+    "DEFAULT_BIOMASS_ESTIMATE_COL",
+    "DEFAULT_EQUATION_USED_COL",
     "load_equations",
     "load_packaged_equations",
     "estimate_tree",
     "estimate_trees",
+    "enrich_table",
+    "BigQueryBiomassConfig",
+    "BigQueryBiomassReadResult",
+    "MissingBigQueryDependencyError",
+    "build_input_query",
+    "read_bigquery_input",
+    "BigQueryBiomassWritebackConfig",
+    "WritebackResult",
+    "WritebackValidationError",
+    "build_merge_statement",
+    "build_validation_query",
+    "ensure_control_tables_exist",
+    "merge_stage_into_final",
+    "prepare_stage_dataframe",
+    "record_run_row",
+    "render_runs_table_ddl",
+    "run_writeback",
+    "validate_stage_table",
+    "write_enriched_to_stage",
 ]

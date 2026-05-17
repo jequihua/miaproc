@@ -15,7 +15,7 @@
     "name": "site_id",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Site identifier (e.g. RBRL, RBMNN). Filtered server-side by miaproc via @site_id parameter (Decision 008 multi-site contract)."
+    "description": "Site identifier (for example RBRL, RBMNN). The grouped BigQuery CLI partitions the flux-side all-data read by --group-column site_id; biomet rows are joined by timestamp after the selected biomet variables are normalized."
   },
   {
     "name": "SWIN_1_1_1",
@@ -33,6 +33,6 @@
     "name": "RH_1_1_1",
     "type": "FLOAT64",
     "mode": "NULLABLE",
-    "description": "Relative humidity in percent. Renamed to rH. Pass-through into silver; preserved into gold by the M14 column-preservation contract."
+    "description": "Relative humidity in percent. Renamed to rH. If a divergent duplicate humidity column reaches the silver stage payload, the M28 collision policy preserves source rH and renames the derived duplicate to rH_norm_s."
   }
 ]

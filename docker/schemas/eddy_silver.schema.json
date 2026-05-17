@@ -69,7 +69,13 @@
     "name": "rH",
     "type": "FLOAT64",
     "mode": "NULLABLE",
-    "description": "Relative humidity in percent (renamed from RH_1_1_1). Silver-only pass-through; carried into gold via _attach_silver_columns_to_gold."
+    "description": "Source relative humidity in percent (renamed from RH_1_1_1). Source rH is never renamed; if a divergent normalized duplicate is present, that duplicate becomes rH_norm_s."
+  },
+  {
+    "name": "rH_norm_s",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Silver-stage normalized/derived relative-humidity column created only when the M28 payload builder sees a divergent duplicate rH. Source rH is never renamed; equivalent duplicate rH columns are suppressed, while divergent humidity information is preserved here for BigQuery-compatible unique column names."
   },
   {
     "name": "H",
@@ -94,5 +100,23 @@
     "type": "INT64",
     "mode": "NULLABLE",
     "description": "EddyPro QC class for LE."
+  },
+  {
+    "name": "filename",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "EddyPro source filename carried forward from the bronze flux table under the M28/M29 column-accumulation contract."
+  },
+  {
+    "name": "DOY",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Day of year carried forward from the bronze flux table under the M28/M29 column-accumulation contract."
+  },
+  {
+    "name": "daytime",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro daytime indicator carried forward from the bronze flux table under the M28/M29 column-accumulation contract."
   }
 ]

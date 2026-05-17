@@ -3,7 +3,7 @@
     "name": "primary_key",
     "type": "STRING",
     "mode": "NULLABLE",
-    "description": "Source-side stable per-row identifier. Passes through unchanged into silver/gold when present; M8 writeback synthesizes '<site_id>|<iso_utc_timestamp>' as a fallback when absent. Recommended REQUIRED in production source tables."
+    "description": "Source-side stable per-row identifier. The silver/gold stage payload materializes the canonical writeback primary_key as '<site_id>|<iso_utc_timestamp>'; if a source primary_key is already present, the M28 payload builder records an identity_overwrite audit action. Recommended REQUIRED in production source tables, but not relied on as the final BigQuery writeback identity."
   },
   {
     "name": "timestamp",
@@ -15,7 +15,7 @@
     "name": "site_id",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Site identifier (e.g. RBRL, RBMNN). Filtered server-side by miaproc via @site_id parameter (Decision 008 multi-site contract). Matched against --site-id passed to the CLI."
+    "description": "Site identifier (for example RBRL, RBMNN). The grouped BigQuery CLI partitions the all-data read by --group-column site_id and writes per-site stage identity values; legacy programmatic callers may still filter by a single site_id."
   },
   {
     "name": "co2_flux",

@@ -3,7 +3,7 @@
     "name": "primary_key",
     "type": "STRING",
     "mode": "REQUIRED",
-    "description": "Stage identity. For run-bigquery-gold the M22 path constructs '<site_id>|<iso_utc_timestamp>' deterministically (source_flux_df=None — silver-from-BQ is processed stage-1 output, not raw bronze flux, so the M10 source-flux primary_key pass-through path is intentionally skipped). validate_stage_table aborts the writeback on null or duplicate values."
+    "description": "Stage identity. For run-bigquery-gold the M22 path constructs '<site_id>|<iso_utc_timestamp>' deterministically (source_flux_df=None \u2014 silver-from-BQ is processed stage-1 output, not raw bronze flux, so the M10 source-flux primary_key pass-through path is intentionally skipped). validate_stage_table aborts the writeback on null or duplicate values."
   },
   {
     "name": "site_id",
@@ -144,10 +144,22 @@
     "description": "Sensible heat flux (silver-only column reattached onto gold)."
   },
   {
+    "name": "qc_H",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro QC class for H, preserved from silver into gold when present."
+  },
+  {
     "name": "LE",
     "type": "FLOAT64",
     "mode": "NULLABLE",
     "description": "Latent heat flux (silver-only column reattached onto gold)."
+  },
+  {
+    "name": "qc_LE",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro QC class for LE, preserved from silver into gold when present."
   },
   {
     "name": "P_RAIN",
@@ -159,6 +171,30 @@
     "name": "rH",
     "type": "FLOAT64",
     "mode": "NULLABLE",
-    "description": "Relative humidity (silver-only column reattached onto gold)."
+    "description": "Source relative humidity preserved from silver into gold. Source rH is never renamed; divergent normalized humidity is carried separately as rH_norm_s."
+  },
+  {
+    "name": "rH_norm_s",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Silver-stage normalized/derived relative-humidity column preserved into gold when the M28 payload builder resolved a divergent duplicate rH. Source rH remains the canonical source humidity column."
+  },
+  {
+    "name": "filename",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "EddyPro source filename accumulated from bronze through silver into gold when present."
+  },
+  {
+    "name": "DOY",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Day of year accumulated from bronze through silver into gold when present."
+  },
+  {
+    "name": "daytime",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro daytime indicator accumulated from bronze through silver into gold when present."
   }
 ]

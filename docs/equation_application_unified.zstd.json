@@ -1,0 +1,177 @@
+[
+  {
+    "name": "source_dataset",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Canonical short source name. 'infys' = Mexican volume workbook (INFYS / SNIF national forest inventory). 'dina' = mangrove biomass CSV."
+  },
+  {
+    "name": "source_record_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Per-source stable id minted at ingest time. Format: 'infys_NNNNN' or 'dina_NNN'."
+  },
+  {
+    "name": "state",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Mexican state name (volume rows only). Null for biomass rows."
+  },
+  {
+    "name": "umafor_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "UMAFOR (Unidad de Manejo Forestal Regional) code, e.g. '0101'. STRING is required to preserve leading zeros; loading as INT64 would corrupt 4486 rows in the current snapshot."
+  },
+  {
+    "name": "mx_inegi_cveecon4",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "INEGI / CONABIO Clave Ecorregion Nivel 4 (Mexican-domain proper-noun identifier; Spanish-origin code retained intentionally)."
+  },
+  {
+    "name": "scientific_name_apg_raw",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Species scientific name as it appears in the source. APG nomenclature for volume rows; common species names for biomass rows."
+  },
+  {
+    "name": "scientific_name_standardized",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Standardized scientific name (currently equals raw for biomass rows; null for volume rows -- no taxonomic standardization applied yet)."
+  },
+  {
+    "name": "assignment_level",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Volume-source assignment level. Documented values 1-8; 9, 10, 11 also appear in the data and have no description in the source workbook (see 05_governance/risks.md). Null for biomass rows."
+  },
+  {
+    "name": "assignment_level_desc",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Spanish description of the assignment level, denormalized inline. Null when assignment_level has no source-side description (values 9-11 in the current snapshot) or for biomass rows."
+  },
+  {
+    "name": "equation_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Source-side equation identifier (volume only)."
+  },
+  {
+    "name": "source_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Bibliographic source key (volume only). Two distinct values in the current snapshot: '1erINF61-85', 'Siplafor'."
+  },
+  {
+    "name": "source_reference",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Bibliographic reference text, denormalized inline (volume only)."
+  },
+  {
+    "name": "equation_raw",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Original equation text from source. Predictor tokens may be Spanish-derived (e.g. 'Diam', 'Altura', 'DAP', 'WD'); see README.md 'Source-language note'."
+  },
+  {
+    "name": "equation_normalized",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Lowercased, token-standardized equation. Predictor tokens are diam (DBH cm), alt (height m), wd (wood density tonne/m3)."
+  },
+  {
+    "name": "equation_numpy",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "NumPy-evaluable RHS expression. Volume uses np.exp / np.log / np.power; biomass uses Python ** for exponentiation. Suitable for `eval(expr, {'np': np}, {'diam': ..., 'alt': ..., 'wd': ...})`."
+  },
+  {
+    "name": "equation_numpy_wd_fixed",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Biomass-only: equation_numpy with wd already substituted to the species' literal wood-density value (e.g. '0.403*0.78*(diam)**1.934' for Avicennia germinans). Null for volume rows."
+  },
+  {
+    "name": "dbh_range_cm_raw",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Original DBH applicability range string from the source workbook (volume only)."
+  },
+  {
+    "name": "dbh_min_cm",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Parsed minimum DBH in centimetres."
+  },
+  {
+    "name": "dbh_max_cm",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Parsed maximum DBH in centimetres."
+  },
+  {
+    "name": "height_range_m_raw",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Original total-tree-height applicability range string from the source workbook (volume only)."
+  },
+  {
+    "name": "height_min_m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Parsed minimum total tree height in metres."
+  },
+  {
+    "name": "height_max_m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Parsed maximum total tree height in metres."
+  },
+  {
+    "name": "wood_density_value",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Wood density (biomass rows only). Units in wood_density_units."
+  },
+  {
+    "name": "wood_density_units",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Units of wood_density_value, e.g. 'tonne/m3'."
+  },
+  {
+    "name": "wood_density_source",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Filename of the wood-density reference used for the join (e.g. 'wood_density_values_table29.csv')."
+  },
+  {
+    "name": "response_variable",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Response variable symbol. 'VRTAcc' for volume rows, 'B' for biomass rows."
+  },
+  {
+    "name": "response_units",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Response units. 'm3' for volume rows, 'kg' for biomass rows."
+  },
+  {
+    "name": "parse_status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Parsing outcome. 'ok' or 'missing_equation'. Currently 0 rows are 'missing_equation' in the live snapshot."
+  },
+  {
+    "name": "parse_notes",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Free-text parsing notes; usually null. STRING type matters: a bare CSV-to-parquet pass would coerce this all-null column to LOGICAL and break a STRING load (regression caught and fixed in R/07_export_parquet_unified.R)."
+  }
+]
+

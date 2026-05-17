@@ -1,5 +1,4 @@
 from pathlib import Path
-import pandas as pd
 
 from miaproc.eddy import load_stage1
 from miaproc.eddy import postproc, HessefluxConfig

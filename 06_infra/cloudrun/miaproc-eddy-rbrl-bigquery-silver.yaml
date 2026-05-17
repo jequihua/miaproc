@@ -1,0 +1,86 @@
+# Cloud Run Job manifest: miaproc eddy run-bigquery-silver, all sites
+# (M24 all-data grouped silver job — DRAFT example).
+#
+# Purpose: read the bronze/source flux + biomet tables in
+# `manglaria.manglaria_lakehouse_ds` (no CLI-injected site filter)
+# and stage the silver-stage eddy table for **every** site present
+# in the read window into the **shared**
+# `manglaria-staging.manglaria_lakehouse_ds.cf_s2_silver_stage`
+# stage table plus a runs row in `manglaria-staging._orch.cf_s2_runs`.
+# M22 silver is stage-only by design — there is no --bq-final-table /
+# --bq-allow-final-merge flag for silver. No R preflight, no
+# --repo-root.
+#
+# M24: --site-id is no longer a CLI flag and the BigQuery read does
+# not inject a WHERE site_id filter. `--group-column site_id`
+# partitions the all-data input into per-category runs in Python and
+# stacks the per-category silver tables once into the shared stage
+# table. The shared stage table name (`cf_s2_silver_stage`, no
+# per-site suffix) is now valid because writeback is invoked once
+# against the stacked output rather than once per site.
+#
+# Status: DRAFT example. Image is pinned to the M23 immutable digest.
+# Operator-owned items the cloud engineer must replace before live
+# deployment:
+#
+# - `serviceAccountName` (the cf-s2-eddy-runner identity in M11/M12
+#   is reused here as a draft; live IAM bindings are recorded under
+#   06_infra/cloudrun/iam-grants-required.md);
+# - `--bq-stage-table=cf_s2_silver_stage` (shared all-site stage
+#   table; cloud engineers can rename, but per-site suffixes are no
+#   longer required because grouped writeback is one stacked write);
+# - region / namespace / resource limits if they differ from
+#   M11/M12 conventions;
+# - --bq-start-timestamp / --bq-end-timestamp window if the job is
+#   bounded (omitted here so the example reads the full source
+#   slice for every site present).
+#
+# This manifest has NOT been validated against a live BigQuery
+# environment under M24; it is a sketch intended to ride alongside
+# the accepted one-shot manifests.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-bigquery-silver
+  namespace: manglaria-staging
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: bigquery-silver
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: cf-s2-eddy-runner@manglaria-staging.iam.gserviceaccount.com
+          maxRetries: 0
+          timeoutSeconds: 1800
+          containers:
+          - name: miaproc
+            image: us-central1-docker.pkg.dev/manglaria-staging/cloud-run-source-deploy/miaproc@sha256:a59f763246bcc08ccb2b82f40309f98850de53f898533c8c5ac0c69a53acd36f
+            command:
+            - miaproc
+            args:
+            - eddy
+            - run-bigquery-silver
+            - --bq-input-project=manglaria
+            - --bq-input-dataset=manglaria_lakehouse_ds
+            - --bq-flux-table=carbon_flux_eddycovariance
+            - --bq-biomet-table=carbon_flux_biomet
+            - --bq-billing-project=manglaria-staging
+            - --group-column=site_id
+            - --bq-output-project=manglaria-staging
+            - --bq-output-dataset=manglaria_lakehouse_ds
+            - --bq-stage-table=cf_s2_silver_stage
+            - --bq-control-dataset=_orch
+            - --output-table=/tmp/silver.parquet
+            - --output-run-json=/tmp/silver_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: manglaria-staging
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi

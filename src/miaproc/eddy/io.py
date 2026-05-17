@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import warnings
-from typing import Iterable, Sequence
+from typing import Sequence
 
 import pandas as pd
 
@@ -70,12 +70,29 @@ def drop_unit_rows(
     unit_marker: str = UNIT_ROW_TIME_MARKER,
 ) -> pd.DataFrame:
     """
-    Replicates:
+    Replicates the R workflow's unit-row filter:
       df %>% filter(time != "[HH:MM]")
+
+    This is a legacy concern: EddyPro-style ``full_output`` CSVs contain a
+    second header row whose ``time`` cell is the literal string
+    ``"[HH:MM]"``. Case-study files shaped with a single ``timestamp``
+    column have no unit row to drop, and should pass through silently.
+
+    Behavior:
+
+    - If ``time_col`` exists, filter rows where it equals ``unit_marker``
+      (legacy path).
+    - If ``time_col`` is absent and a ``timestamp`` column is present, return
+      the frame unchanged without warning — there is no unit row to drop.
+    - If neither column is present, warn (the caller likely has the wrong
+      frame shape entirely).
     """
-    if time_col not in df.columns:
-        warnings.warn(f"drop_unit_rows: '{time_col}' column not found; nothing dropped.")
+    if time_col in df.columns:
+        mask = df[time_col].astype(str).str.strip() != unit_marker
+        return df.loc[mask].copy()
+
+    if "timestamp" in df.columns:
         return df
 
-    mask = df[time_col].astype(str).str.strip() != unit_marker
-    return df.loc[mask].copy()
+    warnings.warn(f"drop_unit_rows: '{time_col}' column not found; nothing dropped.")
+    return df

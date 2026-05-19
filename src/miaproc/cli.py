@@ -2496,6 +2496,47 @@ def _unique_source_columns(df: Any) -> list[str]:
     return out
 
 
+def _stage1_alias_map() -> dict[str, str]:
+    """Return the raw-bronze -> canonical-silver column alias map (M31).
+
+    Stage 1 renames bronze/source flux + biomet columns into their
+    canonical silver names before merging (see
+    ``miaproc.eddy.core.stage1_from_raw_frames`` and
+    ``miaproc.eddy.constants``). The dry-run preservation check
+    compares bronze input column names against the silver payload, so
+    it must know about these aliases to avoid false-positive
+    ``missing_input_columns`` reports.
+
+    Composed from:
+
+    - ``FULL_OUTPUT_RENAME_MAP``: flux-side EddyPro raw -> canonical
+      (``co2_flux -> NEE``, ``qc_co2_flux -> QC_NEE``,
+      ``air_temperature -> Tair``, ``u. -> USTAR``);
+    - ``BIOMET_OUT_RENAME``: biomet keyed columns -> canonical
+      (``SWIN_1_1_1 -> Rg``, ``P_RAIN_1_1_1 -> P_RAIN``,
+      ``RH_1_1_1 -> rH``);
+    - chained ``u_star -> u. -> USTAR`` from
+      ``miaproc.eddy.core._resolve_ustar_alias``.
+
+    Returned as a fresh dict so callers can mutate it locally
+    without poisoning the package state.
+    """
+    from miaproc.eddy.constants import (
+        BIOMET_OUT_RENAME,
+        FULL_OUTPUT_RENAME_MAP,
+    )
+
+    aliases: dict[str, str] = {}
+    aliases.update(FULL_OUTPUT_RENAME_MAP)
+    aliases.update(BIOMET_OUT_RENAME)
+    if "u." in FULL_OUTPUT_RENAME_MAP:
+        aliases["u_star"] = FULL_OUTPUT_RENAME_MAP["u."]
+    return aliases
+
+
+SILVER_STAGE1_INPUT_ALIASES: dict[str, str] = _stage1_alias_map()
+
+
 def _build_stage_payload_dry_run_metadata(
     payload_df: Any,
     *,
@@ -2505,6 +2546,7 @@ def _build_stage_payload_dry_run_metadata(
     input_df: Any,
     collision_actions: list[dict[str, Any]],
     would_write: Optional[dict[str, Any]] = None,
+    input_alias_map: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     """Build the JSON-safe metadata dict for the M29 dry-run artifact.
 
@@ -2523,17 +2565,39 @@ def _build_stage_payload_dry_run_metadata(
     touched. ``None`` collapses to ``{}`` in the output so the
     artifact shape stays stable.
 
+    ``input_alias_map`` (M31) maps raw bronze column names to their
+    canonical silver names. When a raw input column is absent from
+    the payload but its canonical alias is present, the column is
+    treated as preserved (preserved_via_alias) rather than missing,
+    and the resolution is recorded under
+    ``input_column_payload_aliases``. ``None`` and ``{}`` disable
+    aliasing (used by the gold dry-run, whose ``input_df`` is silver
+    and already in canonical names). Strictness is preserved: a
+    bronze column whose canonical alias is also absent still counts
+    as missing and still raises the dry-run guard.
+
     Raises ``ValueError`` (callers translate to ``RUNTIME_EXIT``) if
-    any unique input column failed to make it into the payload — that
-    would be a silent regression of the M28 preservation contract and
-    the operator should see it loudly rather than via a misleading
-    JSON artifact.
+    any unique input column truly fails to make it into the payload
+    (neither under its source name nor under a configured alias) —
+    that would be a silent regression of the M28 preservation
+    contract and the operator should see it loudly rather than via a
+    misleading JSON artifact.
+
+    M31 also tightens the columns_unique invariant: ``columns_unique``
+    is true only when the payload has no case-insensitive collisions
+    on BigQuery field keys; ``duplicate_columns`` lists the
+    case-insensitive duplicates that would have been rejected by
+    ``load_table_from_dataframe``.
     """
+    from miaproc.eddy.bigquery_writeback import bigquery_field_key
+
     columns = [str(c) for c in payload_df.columns]
     dtypes = [str(payload_df[c].dtype) for c in payload_df.columns]
+    keys = [bigquery_field_key(c) for c in columns]
     duplicate_columns = sorted(
-        c for c in set(columns) if columns.count(c) > 1
+        {columns[i] for i, k in enumerate(keys) if keys.count(k) > 1}
     )
+    columns_unique = len(set(keys)) == len(keys)
     identity_present = {
         ident: ident in columns
         for ident in ("primary_key", "site_id", "timestamp")
@@ -2541,9 +2605,43 @@ def _build_stage_payload_dry_run_metadata(
 
     unique_inputs = _unique_source_columns(input_df)
     payload_set = set(columns)
-    preserved = [c for c in unique_inputs if c in payload_set]
-    missing = [c for c in unique_inputs if c not in payload_set]
-    appended = sorted(c for c in payload_set if c not in set(unique_inputs))
+    alias_map: dict[str, str] = dict(input_alias_map or {})
+
+    # M31: humidity canonicalization (``RH`` -> ``rH``) happens inside
+    # ``ensure_unique_stage_columns`` and is recorded as a
+    # ``renamed_to_canonical_humidity`` action. Treat those renames as
+    # honest aliases too so a bronze ``RH`` that was canonicalized in
+    # the payload is reported as preserved-via-alias rather than as a
+    # spurious missing column. Configured stage1 aliases win over
+    # canonicalization-derived aliases.
+    for action in collision_actions or []:
+        if action.get("action") != "renamed_to_canonical_humidity":
+            continue
+        source_name = action.get("column")
+        target_name = action.get("renamed_to")
+        if (
+            isinstance(source_name, str)
+            and isinstance(target_name, str)
+            and source_name not in alias_map
+        ):
+            alias_map[source_name] = target_name
+
+    preserved: list[str] = []
+    missing: list[str] = []
+    alias_resolutions: dict[str, str] = {}
+    for c in unique_inputs:
+        if c in payload_set:
+            preserved.append(c)
+            continue
+        aliased = alias_map.get(c)
+        if aliased is not None and aliased in payload_set:
+            preserved.append(c)
+            alias_resolutions[c] = aliased
+            continue
+        missing.append(c)
+
+    input_or_alias = set(unique_inputs) | set(alias_resolutions.values())
+    appended = sorted(c for c in payload_set if c not in input_or_alias)
 
     if missing:
         raise ValueError(
@@ -2563,13 +2661,14 @@ def _build_stage_payload_dry_run_metadata(
         "column_count": int(len(columns)),
         "columns": columns,
         "dtypes": dtypes,
-        "columns_unique": bool(payload_df.columns.is_unique),
+        "columns_unique": columns_unique,
         "duplicate_columns": duplicate_columns,
         "identity_columns_present": identity_present,
         "column_collision_actions": list(collision_actions or []),
         "preserved_input_columns": preserved,
         "missing_input_columns": missing,
         "appended_payload_columns": appended,
+        "input_column_payload_aliases": dict(alias_resolutions),
         "bigquery_write_attempted": False,
         "validation_sql_attempted": False,
         "merge_attempted": False,
@@ -2587,6 +2686,7 @@ def _write_stage_payload_dry_run_artifacts(
     input_df: Any,
     collision_actions: list[dict[str, Any]],
     would_write: Optional[dict[str, Any]] = None,
+    input_alias_map: Optional[dict[str, str]] = None,
 ) -> dict[str, Any]:
     """Write ``stage_payload.csv`` + ``stage_payload_metadata.json``.
 
@@ -2620,6 +2720,7 @@ def _write_stage_payload_dry_run_artifacts(
         input_df=input_df,
         collision_actions=collision_actions,
         would_write=would_write,
+        input_alias_map=input_alias_map,
     )
     _write_json(metadata_path, metadata)
 
@@ -3439,6 +3540,7 @@ def _run_eddy_bigquery_silver_command(args: argparse.Namespace) -> int:
                 input_df=bq_result.flux_df,
                 collision_actions=silver_collision_actions,
                 would_write=_silver_would_write(args),
+                input_alias_map=SILVER_STAGE1_INPUT_ALIASES,
             )
             logger.info(
                 "Silver stage-payload dry-run: rows=%d cols=%d dir=%s "

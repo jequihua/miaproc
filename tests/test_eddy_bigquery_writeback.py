@@ -29,6 +29,7 @@ from miaproc.eddy.bigquery_writeback import (
     HUMIDITY_SOURCE_COLUMN,
     WritebackResult,
     WritebackValidationError,
+    bigquery_field_key,
     build_merge_statement,
     build_validation_query,
     ensure_unique_stage_columns,
@@ -870,6 +871,326 @@ class TestEnsureUniqueStageColumns:
             a_["action"] == "suppressed_equivalent_duplicate"
             for a_ in actions
         )
+
+
+class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
+    """M31: BigQuery field keys are case-insensitive.
+
+    Pandas considered ``RH`` and ``rH`` distinct, so the M28 guard
+    let them through and ``load_table_from_dataframe`` failed with
+    ``Field rH already exists in schema``. M31 closes that hole by
+    operating on ``casefold``-d field keys for both the duplicate
+    detection and the reserved-name search for the divergent-derived
+    rename. The humidity family is normalized to the canonical
+    source name ``rH``; non-humidity case collisions still raise.
+    """
+
+    @staticmethod
+    def _two_humidity_variants_diverge() -> pd.DataFrame:
+        base = pd.DataFrame(
+            {
+                "DateTime": pd.date_range(
+                    "2025-08-01", periods=3, freq="30min", tz="UTC"
+                ),
+                "NEE": [0.1, 0.2, 0.3],
+                "USTAR": [0.2, 0.3, 0.4],
+            }
+        )
+        return pd.concat(
+            [
+                base,
+                pd.Series([60.0, 70.0, 80.0]).rename("RH"),
+                pd.Series([55.0, 75.0, 85.0]).rename("rH"),
+            ],
+            axis=1,
+        )
+
+    @staticmethod
+    def _two_humidity_variants_equivalent() -> pd.DataFrame:
+        base = pd.DataFrame({"x": [1, 2, 3]})
+        return pd.concat(
+            [
+                base,
+                pd.Series([60.0, 70.0, 80.0]).rename("RH"),
+                pd.Series([60.0, 70.0, 80.0]).rename("rH"),
+            ],
+            axis=1,
+        )
+
+    def test_bigquery_field_key_is_casefold(self):
+        assert bigquery_field_key("rH") == "rh"
+        assert bigquery_field_key("RH") == "rh"
+        assert bigquery_field_key("Rh") == "rh"
+        assert bigquery_field_key("rH_norm_s") == "rh_norm_s"
+        # Idempotent for already-lowercase / non-letter content.
+        assert bigquery_field_key("foo_bar_1") == "foo_bar_1"
+
+    def test_rh_case_collision_equivalent_collapses_to_canonical_rH(self):
+        df = self._two_humidity_variants_equivalent()
+        out, actions = ensure_unique_stage_columns(df)
+        # Final payload has BigQuery-unique field keys.
+        keys = [bigquery_field_key(c) for c in out.columns]
+        assert len(set(keys)) == len(keys), list(out.columns)
+        # The kept humidity column is canonicalized to ``rH``.
+        assert "rH" in out.columns
+        assert "RH" not in out.columns
+        assert HUMIDITY_DERIVED_RENAME not in out.columns
+        # Two actions: canonicalization + suppression of equivalent dup.
+        assert any(
+            a["action"] == "renamed_to_canonical_humidity"
+            and a["renamed_to"] == HUMIDITY_SOURCE_COLUMN
+            for a in actions
+        )
+        assert any(
+            a["action"] == "suppressed_equivalent_duplicate"
+            for a in actions
+        )
+
+    def test_rh_case_collision_divergent_keeps_rH_and_rH_norm_s(self):
+        df = self._two_humidity_variants_diverge()
+        out, actions = ensure_unique_stage_columns(df)
+        keys = [bigquery_field_key(c) for c in out.columns]
+        assert len(set(keys)) == len(keys), list(out.columns)
+        # Source ``RH`` is canonicalized to ``rH`` (the first
+        # occurrence wins); the divergent derived ``rH`` is renamed.
+        assert "rH" in out.columns
+        assert HUMIDITY_DERIVED_RENAME in out.columns
+        assert "RH" not in out.columns
+        # Source values are preserved under the canonical name.
+        assert list(out["rH"]) == [60.0, 70.0, 80.0]
+        assert list(out[HUMIDITY_DERIVED_RENAME]) == [55.0, 75.0, 85.0]
+        assert any(
+            a["action"] == "renamed_to_canonical_humidity"
+            for a in actions
+        )
+        assert any(
+            a["action"] == "renamed_divergent_duplicate"
+            and a["renamed_to"] == HUMIDITY_DERIVED_RENAME
+            for a in actions
+        )
+
+    def test_payload_has_no_case_insensitive_duplicate_keys(self):
+        """Stronger than ``payload.columns.is_unique``: cover the
+        BigQuery uniqueness semantics that surfaced as the cloud
+        failure mode."""
+        df = self._two_humidity_variants_diverge()
+        out, _ = ensure_unique_stage_columns(df)
+        # The pandas-level uniqueness check passes both before and
+        # after the fix; the case-insensitive check did not pass
+        # before M31.
+        assert out.columns.is_unique
+        keys = [bigquery_field_key(c) for c in out.columns]
+        assert len(set(keys)) == len(keys), list(out.columns)
+
+    def test_existing_rH_norm_s_still_uses_suffix_under_case_insensitivity(
+        self,
+    ):
+        """The deterministic suffix logic must also consult
+        case-folded keys when picking the next available rename
+        target, so an existing ``rH_norm_s`` (or a hypothetical
+        ``RH_norm_s``) cannot collide with the new derived rename."""
+        base = pd.DataFrame(
+            {
+                "DateTime": pd.date_range(
+                    "2025-08-01", periods=3, freq="30min", tz="UTC"
+                ),
+                HUMIDITY_DERIVED_RENAME: [10.0, 20.0, 30.0],
+            }
+        )
+        df = pd.concat(
+            [
+                base,
+                pd.Series([60.0, 70.0, 80.0]).rename("RH"),
+                pd.Series([55.0, 75.0, 85.0]).rename("rH"),
+            ],
+            axis=1,
+        )
+        out, actions = ensure_unique_stage_columns(df)
+        cols = list(out.columns)
+        # Source ``RH`` becomes canonical ``rH``; existing
+        # ``rH_norm_s`` is preserved; divergent derived gets the
+        # numeric suffix.
+        assert cols.count("rH") == 1
+        assert HUMIDITY_DERIVED_RENAME in cols
+        assert f"{HUMIDITY_DERIVED_RENAME}_2" in cols
+        keys = [bigquery_field_key(c) for c in cols]
+        assert len(set(keys)) == len(keys), cols
+        assert any(
+            a["renamed_to"] == f"{HUMIDITY_DERIVED_RENAME}_2"
+            for a in actions
+        )
+
+    def test_non_humidity_case_insensitive_collision_raises(self):
+        """``NEE`` + ``nee`` is a case-insensitive duplicate but
+        not in the humidity family: the helper must raise
+        ``DuplicateStageColumnsError`` so the upstream pipeline is
+        fixed before any BigQuery write."""
+        base = pd.DataFrame(
+            {"DateTime": pd.date_range(
+                "2025-08-01", periods=3, freq="30min", tz="UTC"
+            )}
+        )
+        df = pd.concat(
+            [
+                base,
+                pd.Series([0.1, 0.2, 0.3]).rename("NEE"),
+                pd.Series([0.11, 0.22, 0.33]).rename("nee"),
+            ],
+            axis=1,
+        )
+        with pytest.raises(DuplicateStageColumnsError) as exc_info:
+            ensure_unique_stage_columns(df)
+        msg = str(exc_info.value)
+        # Both the affected logical key and the source variants are
+        # named so the operator can locate the upstream defect.
+        assert "nee" in msg
+        assert "NEE" in msg
+        # The error preserves the source column names for tooling.
+        assert set(exc_info.value.duplicate_columns) >= {"NEE", "nee"}
+
+    def test_multiple_non_humidity_case_collisions_all_reported(self):
+        base = pd.DataFrame(
+            {"x": [1, 2, 3]}
+        )
+        df = pd.concat(
+            [
+                base,
+                pd.Series([0.1, 0.2, 0.3]).rename("NEE"),
+                pd.Series([0.11, 0.22, 0.33]).rename("nee"),
+                pd.Series([1, 2, 3]).rename("Tair"),
+                pd.Series([4, 5, 6]).rename("tair"),
+            ],
+            axis=1,
+        )
+        with pytest.raises(DuplicateStageColumnsError) as exc_info:
+            ensure_unique_stage_columns(df)
+        names = set(exc_info.value.duplicate_columns)
+        assert {"NEE", "nee", "Tair", "tair"} <= names
+
+    def test_three_way_humidity_collision_canonicalizes_and_suffixes(self):
+        """``RH`` + ``Rh`` + ``rH`` should collapse to ``rH`` with the
+        right policy applied to each subsequent occurrence."""
+        base = pd.DataFrame({"x": [1, 2, 3]})
+        df = pd.concat(
+            [
+                base,
+                pd.Series([60.0, 70.0, 80.0]).rename("RH"),
+                pd.Series([60.0, 70.0, 80.0]).rename("Rh"),  # equiv
+                pd.Series([55.0, 75.0, 85.0]).rename("rH"),  # diverges
+            ],
+            axis=1,
+        )
+        out, actions = ensure_unique_stage_columns(df)
+        cols = list(out.columns)
+        keys = [bigquery_field_key(c) for c in cols]
+        assert len(set(keys)) == len(keys), cols
+        assert "rH" in cols
+        assert HUMIDITY_DERIVED_RENAME in cols
+        # First variant renamed to canonical; second equivalent
+        # suppressed; third divergent renamed to rH_norm_s.
+        actions_by_kind = [a["action"] for a in actions]
+        assert "renamed_to_canonical_humidity" in actions_by_kind
+        assert "suppressed_equivalent_duplicate" in actions_by_kind
+        assert "renamed_divergent_duplicate" in actions_by_kind
+
+
+class TestPrepareSilverStagePayloadCaseInsensitiveM31:
+    """M31: ``prepare_silver_stage_payload`` must inherit the
+    case-insensitive humidity policy because cloud silver writeback
+    failed with case-only-different ``RH`` + ``rH`` columns."""
+
+    @staticmethod
+    def _silver_with_RH_and_rH(*, diverge: bool) -> pd.DataFrame:
+        rh = [55.0, 75.0, 85.0] if diverge else [60.0, 70.0, 80.0]
+        return pd.DataFrame(
+            {
+                "DateTime": pd.date_range(
+                    "2025-08-01", periods=3, freq="30min", tz="UTC"
+                ),
+                "NEE": [0.1, 0.2, 0.3],
+                "QC_NEE": [0, 0, 0],
+                "Tair": [20.0, 21.0, 22.0],
+                "USTAR": [0.2, 0.3, 0.4],
+                "RH": [60.0, 70.0, 80.0],
+                "rH": rh,
+            }
+        )
+
+    def test_equivalent_RH_rH_collapses_to_canonical_rH(self):
+        silver = self._silver_with_RH_and_rH(diverge=False)
+        payload, actions = prepare_silver_stage_payload(
+            silver, site_id="RBRL"
+        )
+        keys = [bigquery_field_key(c) for c in payload.columns]
+        assert len(set(keys)) == len(keys), list(payload.columns)
+        assert "rH" in payload.columns
+        assert "RH" not in payload.columns
+        assert HUMIDITY_DERIVED_RENAME not in payload.columns
+        # Kept ``rH`` carries source values (60, 70, 80) — both
+        # variants were equivalent so the first wins.
+        assert list(payload["rH"]) == [60.0, 70.0, 80.0]
+        assert any(
+            a["action"] == "renamed_to_canonical_humidity" for a in actions
+        )
+
+    def test_divergent_RH_rH_preserves_both_as_rH_and_rH_norm_s(self):
+        silver = self._silver_with_RH_and_rH(diverge=True)
+        payload, actions = prepare_silver_stage_payload(
+            silver, site_id="RBRL"
+        )
+        keys = [bigquery_field_key(c) for c in payload.columns]
+        assert len(set(keys)) == len(keys), list(payload.columns)
+        assert "rH" in payload.columns
+        assert HUMIDITY_DERIVED_RENAME in payload.columns
+        assert "RH" not in payload.columns
+        assert list(payload["rH"]) == [60.0, 70.0, 80.0]
+        assert list(payload[HUMIDITY_DERIVED_RENAME]) == [55.0, 75.0, 85.0]
+
+
+class TestPrepareStageDataframeS2FiltOneMappingM31:
+    """M31: gold ``prepare_stage_dataframe`` renames source -> target
+    rather than duplicating because BigQuery field keys are
+    case-insensitive. Keeping both ``NEE_f`` and ``nee_f`` would
+    surface as ``Field nee_f already exists in schema`` at the live
+    stage load."""
+
+    @staticmethod
+    def _gold_with_canonical_backend_outputs() -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "DateTime": pd.date_range(
+                    "2025-08-01", periods=3, freq="30min", tz="UTC"
+                ),
+                "NEE_f": [0.11, 0.21, 0.31],
+                "NEE_fqc": [0, 0, 0],
+                "Rg_f": [0.0, 100.0, 200.0],
+                "Tair_f": [20.5, 21.5, 22.5],
+                "VPD_f": [5.1, 6.1, 7.1],
+            }
+        )
+
+    def test_lowercase_targets_present_uppercase_backend_names_dropped(
+        self,
+    ):
+        out = prepare_stage_dataframe(
+            self._gold_with_canonical_backend_outputs(),
+            site_id="RBRL",
+        )
+        for col in ("nee_f", "nee_fqc", "sw_in_f", "ta_f", "vpd_f"):
+            assert col in out.columns, col
+        for col in ("NEE_f", "NEE_fqc", "Rg_f", "Tair_f", "VPD_f"):
+            assert col not in out.columns, col
+        keys = [bigquery_field_key(c) for c in out.columns]
+        assert len(set(keys)) == len(keys), list(out.columns)
+
+    def test_values_carry_through_rename(self):
+        out = prepare_stage_dataframe(
+            self._gold_with_canonical_backend_outputs(),
+            site_id="RBRL",
+        )
+        assert out["nee_f"].iloc[0] == 0.11
+        assert out["sw_in_f"].iloc[1] == 100.0
+        assert out["ta_f"].iloc[2] == 22.5
 
 
 class TestValidateSourceColumnsUnique:

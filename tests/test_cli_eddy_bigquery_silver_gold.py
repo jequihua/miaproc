@@ -1848,3 +1848,414 @@ class TestRealWritebackUnchangedWhenDryRunFlagAbsent:
         rc = cli.main(argv)
         assert rc == cli.SUCCESS_EXIT
         assert called["writeback"] is True
+
+
+# ---------------------------------------------------------------------------
+# M31: real-cloud-shaped silver fixtures (raw bronze names + RH/rH case
+# collision). The cloud silver writeback failed with
+# ``Field rH already exists in schema`` and the dry-run guard failed
+# with ``unique input columns missing ... co2_flux ...``. Both shapes
+# are covered here so a future regression of either is loud.
+# ---------------------------------------------------------------------------
+
+
+def _cloud_bronze_flux_df() -> pd.DataFrame:
+    """Bronze flux frame in the real cloud column shape.
+
+    Columns mirror the live ``carbon_flux_eddycovariance`` source
+    table the cloud engineers fed to ``run-bigquery-silver``:
+    EddyPro-style raw names (``co2_flux``, ``qc_co2_flux``,
+    ``air_temperature``, ``u_star``), a flux-side source ``RH``
+    pass-through, identity (``timestamp``, ``site_id``), and a
+    bronze-only sentinel that has no canonical alias and so must
+    still surface as a true preservation column.
+    """
+    return pd.DataFrame(
+        {
+            "timestamp": pd.date_range(
+                "2025-08-01", periods=4, freq="30min", tz="UTC"
+            ),
+            "site_id": ["RBRL"] * 4,
+            "co2_flux": [0.1, 0.2, -0.1, 0.3],
+            "qc_co2_flux": [0, 0, 0, 0],
+            "air_temperature": [293.0, 294.0, 295.0, 292.0],
+            "u_star": [0.2, 0.3, 0.4, 0.1],
+            "RH": [60.0, 61.0, 62.0, 63.0],
+            "bronze_only_flag": [1, 0, 1, 0],
+        }
+    )
+
+
+def _cloud_silver_df_with_rh_case_collision(
+    *, diverge: bool = True
+) -> pd.DataFrame:
+    """Silver frame post-stage1 in the real cloud shape.
+
+    Stage 1 normalizes the bronze flux/biomet columns to their
+    canonical names (``NEE``, ``QC_NEE``, ``Tair``, ``USTAR``,
+    ``rH``, etc.) but leaves the flux-side ``RH`` pass-through under
+    its source name. The biomet-derived ``rH`` reaches the silver
+    frame separately. ``diverge`` controls whether the two humidity
+    series carry the same values (suppression) or different values
+    (rename to ``rH_norm_s``).
+    """
+    rh = (
+        [55.0, 75.0, 85.0, 95.0]
+        if diverge
+        else [60.0, 61.0, 62.0, 63.0]
+    )
+    return pd.DataFrame(
+        {
+            "DateTime": pd.date_range(
+                "2025-08-01", periods=4, freq="30min", tz="UTC"
+            ),
+            "NEE": [0.1, 0.2, -0.1, 0.3],
+            "USTAR": [0.2, 0.3, 0.4, 0.1],
+            "Tair": [20.0, 21.0, 22.0, 19.0],
+            "VPD": [5.0, 6.0, 7.0, 4.0],
+            "Rg": [0.0, 100.0, 200.0, 50.0],
+            "QC_NEE": [0, 0, 0, 0],
+            "H": [10.0, 20.0, 30.0, 40.0],
+            "LE": [50.0, 60.0, 70.0, 80.0],
+            "P_RAIN": [0.0, 0.0, 0.0, 0.0],
+            "RH": [60.0, 61.0, 62.0, 63.0],
+            "rH": rh,
+            "bronze_only_flag": [1, 0, 1, 0],
+        }
+    )
+
+
+def _patch_cloud_silver_pipeline(monkeypatch, *, diverge_rh: bool = True):
+    """Stub the silver read + stage1 path with the cloud-shape
+    fixtures. Returns a ``SimpleNamespace`` with a ``calls`` dict so
+    tests can assert what would have been written to BigQuery
+    without ever reaching live credentials."""
+    calls: dict[str, Any] = {"writeback_df": None, "writeback_cfg": None}
+
+    def _fake_read(cfg, *, client=None):
+        return BigQueryReadResult(
+            flux_df=_cloud_bronze_flux_df(),
+            biomet_df=pd.DataFrame(
+                {"timestamp": [], "site_id": []}
+            ),
+            flux_rows=4,
+            biomet_rows=0,
+            flux_query="SELECT * FROM flux",
+            biomet_query="SELECT * FROM biomet",
+            query_parameters={},
+        )
+
+    def _fake_load(**kwargs):
+        return _cloud_silver_df_with_rh_case_collision(diverge=diverge_rh)
+
+    import miaproc.eddy as eddy_pkg
+
+    monkeypatch.setattr(eddy_pkg, "read_bigquery_inputs", _fake_read)
+    monkeypatch.setattr(
+        eddy_pkg, "load_stage1_from_dataframes", _fake_load
+    )
+    return SimpleNamespace(calls=calls)
+
+
+class TestSilverDryRunCloudShapeAliasResolutionM31:
+    """M31 fix A: the dry-run preservation guard must understand
+    that raw bronze column names (``co2_flux``, ``u_star``, ...) are
+    represented in the silver payload by their canonical stage1
+    aliases (``NEE``, ``USTAR``, ...). The cloud engineers' run
+    failed with ``unique input columns missing ... co2_flux, ...``
+    even though the silver payload was correct."""
+
+    def test_silver_dry_run_accepts_normalized_aliases(
+        self, tmp_path, monkeypatch
+    ):
+        _patch_cloud_silver_pipeline(monkeypatch, diverge_rh=True)
+
+        def _no_writeback(*_a, **_kw):
+            raise AssertionError(
+                "run_writeback must not be called during a dry-run"
+            )
+
+        import miaproc.eddy as eddy_pkg
+
+        monkeypatch.setattr(eddy_pkg, "run_writeback", _no_writeback)
+
+        dry_dir = tmp_path / "silver_dry_cloud_alias"
+        argv = _make_silver_argv(
+            tmp_path,
+            **{"--stage-payload-dry-run-dir": str(dry_dir)},
+        )
+        rc = cli.main(argv)
+        assert rc == cli.SUCCESS_EXIT, (
+            "silver dry-run must not raise on normalized bronze "
+            "columns; cloud engineers reported "
+            "ValueError 'unique input columns missing ... co2_flux ...'"
+        )
+
+        meta = json.loads(
+            (dry_dir / "stage_payload_metadata.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        # The cloud-failure-shaped raw columns are all preserved
+        # under their canonical silver names, and the alias map
+        # records the resolutions explicitly.
+        assert meta["missing_input_columns"] == [], meta
+        aliases = meta["input_column_payload_aliases"]
+        assert aliases["co2_flux"] == "NEE"
+        assert aliases["qc_co2_flux"] == "QC_NEE"
+        assert aliases["air_temperature"] == "Tair"
+        assert aliases["u_star"] == "USTAR"
+        # ``RH`` was canonicalized to ``rH`` by the M31 humidity
+        # policy and so also resolves via alias.
+        assert aliases["RH"] == "rH"
+        for raw_name in (
+            "co2_flux", "qc_co2_flux", "air_temperature", "u_star", "RH",
+        ):
+            assert raw_name in meta["preserved_input_columns"], raw_name
+
+        # Bronze-only sentinel (no canonical alias) survives
+        # naturally via the silver frame and is preserved directly.
+        assert "bronze_only_flag" in meta["preserved_input_columns"]
+        assert "bronze_only_flag" not in aliases
+
+        # Identity columns sourced from bronze are still preserved.
+        assert "site_id" in meta["preserved_input_columns"]
+        assert "timestamp" in meta["preserved_input_columns"]
+
+        # Run JSON records the dry-run success and never engaged BQ.
+        run = json.loads(
+            (tmp_path / "silver_run.json").read_text(encoding="utf-8")
+        )
+        assert run["writeback"]["status"] == (
+            "stage_payload_dry_run_succeeded"
+        )
+        assert run["writeback"]["bigquery_write_attempted"] is False
+        assert run["writeback"]["stage_payload_columns_unique"] is True
+
+    def test_silver_dry_run_columns_have_no_case_insensitive_duplicates(
+        self, tmp_path, monkeypatch
+    ):
+        _patch_cloud_silver_pipeline(monkeypatch, diverge_rh=True)
+
+        import miaproc.eddy as eddy_pkg
+
+        monkeypatch.setattr(
+            eddy_pkg, "run_writeback",
+            lambda *_a, **_kw: (_ for _ in ()).throw(
+                AssertionError("run_writeback must not be called")
+            ),
+        )
+
+        dry_dir = tmp_path / "silver_dry_case"
+        argv = _make_silver_argv(
+            tmp_path,
+            **{"--stage-payload-dry-run-dir": str(dry_dir)},
+        )
+        assert cli.main(argv) == cli.SUCCESS_EXIT
+
+        meta = json.loads(
+            (dry_dir / "stage_payload_metadata.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        # M31 strictness: columns_unique is true only when
+        # case-insensitive keys are all distinct.
+        assert meta["columns_unique"] is True
+        assert meta["duplicate_columns"] == []
+        # The cloud failure ``Field rH already exists in schema`` is
+        # now impossible: ``RH`` is gone, ``rH`` and ``rH_norm_s``
+        # coexist with distinct case-folded keys.
+        assert "RH" not in meta["columns"]
+        assert "rH" in meta["columns"]
+        assert "rH_norm_s" in meta["columns"]
+        keys_lower = [c.casefold() for c in meta["columns"]]
+        assert len(set(keys_lower)) == len(keys_lower), meta["columns"]
+
+        # The collision action surfaces the divergent-derived
+        # rename so the operator sees the M28/M31 resolution.
+        actions = meta["column_collision_actions"]
+        assert any(
+            a["column"] == "rH"
+            and a["action"] == "renamed_divergent_duplicate"
+            and a["renamed_to"] == "rH_norm_s"
+            for a in actions
+        ), actions
+
+        # Payload CSV survives a round-trip with the same column
+        # names (no silent lowercase by pandas/CSV).
+        df = pd.read_csv(dry_dir / "stage_payload.csv")
+        assert "rH" in df.columns
+        assert "rH_norm_s" in df.columns
+        assert "RH" not in df.columns
+
+    def test_silver_dry_run_equivalent_RH_rH_collapses_via_collision(
+        self, tmp_path, monkeypatch
+    ):
+        _patch_cloud_silver_pipeline(monkeypatch, diverge_rh=False)
+
+        import miaproc.eddy as eddy_pkg
+
+        monkeypatch.setattr(
+            eddy_pkg, "run_writeback",
+            lambda *_a, **_kw: (_ for _ in ()).throw(
+                AssertionError("run_writeback must not be called")
+            ),
+        )
+
+        dry_dir = tmp_path / "silver_dry_equiv"
+        argv = _make_silver_argv(
+            tmp_path,
+            **{"--stage-payload-dry-run-dir": str(dry_dir)},
+        )
+        assert cli.main(argv) == cli.SUCCESS_EXIT
+
+        meta = json.loads(
+            (dry_dir / "stage_payload_metadata.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert "rH" in meta["columns"]
+        assert "rH_norm_s" not in meta["columns"]
+        actions = meta["column_collision_actions"]
+        # Both: canonicalization of the first variant + suppression
+        # of the equivalent derived duplicate.
+        kinds = {a["action"] for a in actions}
+        assert "renamed_to_canonical_humidity" in kinds
+        assert "suppressed_equivalent_duplicate" in kinds
+
+    def test_silver_dry_run_strict_when_bronze_column_truly_unrepresented(
+        self, tmp_path, monkeypatch
+    ):
+        """Regression guard: the alias-aware fix must not turn
+        ``missing_input_columns`` into a permissive no-op. If the
+        bronze input carries a column whose name has no configured
+        alias and is not literally present in the payload, the
+        dry-run must still fail loudly rather than write a
+        misleading artifact."""
+
+        # Compose a bronze frame that has a real unrepresented
+        # column on top of the cloud-shape fixture.
+        bronze = _cloud_bronze_flux_df()
+        bronze["truly_bronze_only_no_alias"] = [1, 2, 3, 4]
+
+        def _fake_read(cfg, *, client=None):
+            return BigQueryReadResult(
+                flux_df=bronze,
+                biomet_df=pd.DataFrame(
+                    {"timestamp": [], "site_id": []}
+                ),
+                flux_rows=4,
+                biomet_rows=0,
+                flux_query="SELECT * FROM flux",
+                biomet_query="SELECT * FROM biomet",
+                query_parameters={},
+            )
+
+        # Silver frame deliberately omits the new bronze-only column.
+        def _fake_load(**kwargs):
+            return _cloud_silver_df_with_rh_case_collision(diverge=True)
+
+        import miaproc.eddy as eddy_pkg
+
+        monkeypatch.setattr(eddy_pkg, "read_bigquery_inputs", _fake_read)
+        monkeypatch.setattr(
+            eddy_pkg, "load_stage1_from_dataframes", _fake_load
+        )
+        monkeypatch.setattr(
+            eddy_pkg, "run_writeback",
+            lambda *_a, **_kw: (_ for _ in ()).throw(
+                AssertionError("must not be called")
+            ),
+        )
+
+        dry_dir = tmp_path / "silver_dry_strict"
+        argv = _make_silver_argv(
+            tmp_path,
+            **{"--stage-payload-dry-run-dir": str(dry_dir)},
+        )
+        rc = cli.main(argv)
+        # The dry-run-side preservation guard surfaces as
+        # RUNTIME_EXIT so the operator sees the failure loudly.
+        assert rc == cli.RUNTIME_EXIT
+        # The CSV is written first (artifact ordering), but the
+        # metadata is what would have misled the operator and is
+        # the file the dry-run guard refuses to write.
+        meta_path = dry_dir / "stage_payload_metadata.json"
+        assert not meta_path.exists()
+        run = json.loads(
+            (tmp_path / "silver_run.json").read_text(encoding="utf-8")
+        )
+        assert run["writeback"]["status"] == (
+            "stage_payload_dry_run_failed"
+        )
+        assert "truly_bronze_only_no_alias" in run["writeback"].get(
+            "error_text", ""
+        )
+
+
+class TestSilverNonDryRunHandsBigQueryCompatiblePayloadM31:
+    """M31 fix B: the non-dry-run silver writeback path must hand
+    ``run_writeback`` a DataFrame with no case-insensitive duplicate
+    field keys, so the live ``load_table_from_dataframe`` call never
+    surfaces ``Field rH already exists in schema`` again."""
+
+    def test_real_writeback_payload_has_no_case_insensitive_duplicates(
+        self, tmp_path, monkeypatch
+    ):
+        _patch_cloud_silver_pipeline(monkeypatch, diverge_rh=True)
+
+        captured: dict[str, Any] = {}
+
+        def _fake_writeback(df, cfg, **kwargs):
+            captured["df"] = df.copy(deep=False)
+            captured["cfg"] = cfg
+            return WritebackResult(
+                run_id=kwargs.get("run_id", "rid"),
+                status="stage_only_succeeded",
+                stage_rows=int(len(df)),
+                merge_attempted=False,
+                merge_authorized=False,
+                merge_inserted_rows=None,
+                merge_updated_rows=None,
+                watermark_advanced=False,
+                watermark_value=None,
+                validation_metrics={"row_count": int(len(df))},
+                stage_table_fqn=cfg.stage_table_fqn(),
+                final_table_fqn=None,
+                runs_table_fqn=cfg.runs_table_fqn(),
+                watermark_table_fqn=cfg.watermark_table_fqn(),
+                error_text=None,
+                watermark_values_by_site={},
+            )
+
+        import miaproc.eddy as eddy_pkg
+
+        monkeypatch.setattr(eddy_pkg, "run_writeback", _fake_writeback)
+
+        argv = _make_silver_argv(
+            tmp_path,
+            **{
+                "--bq-stage-table": "cf_s2_silver_stage",
+                "--bq-output-project": "manglaria-staging",
+                "--bq-output-dataset": "manglaria_lakehouse_ds",
+                "--bq-control-dataset": "_orch",
+            },
+        )
+        rc = cli.main(argv)
+        assert rc == cli.SUCCESS_EXIT, rc
+
+        staged = captured["df"]
+        assert staged is not None, "run_writeback was not called"
+        # pandas-level uniqueness still holds.
+        assert staged.columns.is_unique
+        # M31 strictness: BigQuery field keys are case-insensitive.
+        keys = [str(c).casefold() for c in staged.columns]
+        assert len(set(keys)) == len(keys), list(staged.columns)
+        # ``RH`` + ``rH`` -> ``rH`` + ``rH_norm_s``; the original
+        # case-variant ``RH`` is gone.
+        assert "RH" not in staged.columns
+        assert "rH" in staged.columns
+        assert "rH_norm_s" in staged.columns
+        # Production read-only stays intact: the operator pointed
+        # writes at the staging project.
+        assert captured["cfg"].output_project == "manglaria-staging"

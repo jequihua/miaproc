@@ -1,0 +1,46 @@
+﻿apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-biomass-example
+  namespace: <PROJECT_ID>
+  labels:
+    app: miaproc
+    domain: biomass
+    example: "true"
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+          maxRetries: 0
+          timeoutSeconds: 1800
+          containers:
+          - name: miaproc
+            image: <IMAGE_URI>
+            command: ["miaproc"]
+            args:
+            - biomass
+            - run-bigquery
+            - --bq-input-project=<INPUT_PROJECT>
+            - --bq-input-dataset=<INPUT_DATASET>
+            - --bq-input-table=<BIOMASS_INPUT_TABLE>
+            - --bq-billing-project=<BILLING_PROJECT>
+            - --bq-output-project=<OUTPUT_PROJECT>
+            - --bq-output-dataset=<OUTPUT_DATASET>
+            - --bq-stage-table=<BIOMASS_STAGE_TABLE>
+            - --bq-control-dataset=<CONTROL_DATASET>
+            # For explicit final merge only, also fill and keep these args:
+            # - --bq-final-table=<BIOMASS_FINAL_TABLE>
+            # - --bq-allow-final-merge
+            - --output-table=/tmp/biomass_output.csv
+            - --output-run-json=/tmp/biomass_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <BILLING_PROJECT>
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi

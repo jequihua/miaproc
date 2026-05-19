@@ -68,6 +68,7 @@ __all__ = [
     "prepare_silver_stage_payload",
     "ensure_unique_stage_columns",
     "validate_source_columns_unique",
+    "bigquery_field_key",
     "read_final_table_columns",
     "S2_FILT_1_RENAME_MAP",
     "GROUPED_RUN_ROW_SITE_LABEL",
@@ -921,22 +922,48 @@ def _series_equivalent_nan_aware(a: pd.Series, b: pd.Series) -> bool:
         return False
 
 
+def bigquery_field_key(name: Any) -> str:
+    """Return the BigQuery logical field key for a column name.
+
+    BigQuery treats schema field names case-insensitively, so
+    ``RH`` and ``rH`` collide as the same logical field even though
+    pandas considers them distinct (M31). The package-level
+    duplicate-column policy operates on this key, not the literal
+    pandas column name, so the staged payload is BigQuery-compatible.
+    """
+    return str(name).casefold()
+
+
 def ensure_unique_stage_columns(
     df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
     """Return ``(df_unique, collision_actions)`` deterministically.
 
-    Pandas allows duplicate column names; BigQuery does not. The M28
-    contract is:
+    Pandas allows duplicate column names; BigQuery does not, and
+    BigQuery's schema field uniqueness is **case-insensitive** (M31).
+    So columns named ``RH`` and ``rH`` are unique to pandas but
+    collide on BigQuery key ``rh``. The M28 + M31 contract is:
 
-    - For every duplicate ``rH`` column beyond the first occurrence:
-      compare against the first ``rH`` NaN-aware. If equivalent, drop
-      the duplicate copy (the source-side value wins). Otherwise keep
-      the first as ``rH`` and rename the diverging copies to
-      ``rH_norm_s`` (with numeric suffixes if more than one diverges
-      or if ``rH_norm_s`` already exists).
-    - Every other duplicate column name raises
-      :class:`DuplicateStageColumnsError` naming the affected columns.
+    - For every collision on BigQuery key ``rh`` (the known humidity
+      family), the first occurrence is canonicalized to ``rH`` and
+      becomes the source-side kept column. Subsequent occurrences are
+      compared NaN-aware against the kept series:
+
+      * If equivalent, the duplicate is dropped and a
+        ``suppressed_equivalent_duplicate`` action is recorded.
+      * Otherwise the duplicate is renamed to ``rH_norm_s`` (with
+        deterministic numeric suffixes ``rH_norm_s_2`` etc. if
+        ``rH_norm_s`` is already taken) and a
+        ``renamed_divergent_duplicate`` action is recorded.
+
+      If the first humidity variant arrives under a non-canonical
+      case (``RH``, ``Rh``, ...) it is renamed to ``rH`` and a
+      ``renamed_to_canonical_humidity`` action is recorded so the
+      operator can audit the canonicalization.
+
+    - Every other case-insensitive duplicate raises
+      :class:`DuplicateStageColumnsError` naming the affected logical
+      field keys and source column names.
 
     The returned frame is a new object; the input is not mutated. The
     actions list records every collision the helper resolved so
@@ -949,45 +976,84 @@ def ensure_unique_stage_columns(
     if df is None:
         return df, []
     cols = list(df.columns)
-    if pd.Index(cols).is_unique:
+    keys = [bigquery_field_key(c) for c in cols]
+    if len(set(keys)) == len(keys):
         out = df.copy()
         out.attrs[COLUMN_COLLISION_ATTRS_KEY] = []
         return out, []
 
-    # Bucket positional indices by column name.
-    name_to_indices: dict[str, list[int]] = {}
-    for i, c in enumerate(cols):
-        name_to_indices.setdefault(c, []).append(i)
+    # Bucket positional indices by BigQuery logical key (case-insensitive).
+    key_to_indices: dict[str, list[int]] = {}
+    for i, k in enumerate(keys):
+        key_to_indices.setdefault(k, []).append(i)
 
-    # Reject any duplicate name we have no policy for (anything other
-    # than HUMIDITY_SOURCE_COLUMN).
-    other_dups = sorted(
-        name
-        for name, idxs in name_to_indices.items()
-        if len(idxs) > 1 and name != HUMIDITY_SOURCE_COLUMN
+    humidity_key = bigquery_field_key(HUMIDITY_SOURCE_COLUMN)
+
+    # Reject any case-insensitive duplicate we have no policy for
+    # (anything other than the humidity family).
+    other_dup_keys = sorted(
+        k
+        for k, idxs in key_to_indices.items()
+        if len(idxs) > 1 and k != humidity_key
     )
-    if other_dups:
+    if other_dup_keys:
+        affected_names = sorted(
+            {
+                str(cols[i])
+                for k in other_dup_keys
+                for i in key_to_indices[k]
+            }
+        )
         raise DuplicateStageColumnsError(
             "Stage payload has duplicate column names with no "
-            f"deterministic resolution policy: {other_dups}. The package "
+            "deterministic resolution policy (BigQuery field keys are "
+            f"case-insensitive). Affected logical keys: {other_dup_keys}. "
+            f"Affected column names: {affected_names}. The package "
             "refuses to send a duplicate-column schema to BigQuery; the "
             "upstream pipeline must be fixed before the writeback runs.",
-            duplicate_columns=tuple(other_dups),
+            duplicate_columns=tuple(affected_names),
         )
 
     actions: list[dict[str, Any]] = []
-    rh_idxs = name_to_indices.get(HUMIDITY_SOURCE_COLUMN, [])
+    rh_idxs = key_to_indices.get(humidity_key, [])
     keep_mask = [True] * len(cols)
     rename_at: dict[int, str] = {}
 
     if len(rh_idxs) >= 2:
         first_idx = rh_idxs[0]
         first_series = df.iloc[:, first_idx]
-        # Names that are or will be in the output, used to avoid
-        # creating a new collision when picking the derived rename.
-        reserved: set[str] = set(cols)
+        first_name = str(cols[first_idx])
+        # Canonicalize the kept humidity column to ``rH`` (the
+        # source-side canonical name from
+        # ``constants.BIOMET_OUT_RENAME``) so the BigQuery schema
+        # field is deterministic regardless of which case variant
+        # arrived first from upstream.
+        if first_name != HUMIDITY_SOURCE_COLUMN:
+            rename_at[first_idx] = HUMIDITY_SOURCE_COLUMN
+            actions.append(
+                {
+                    "column": first_name,
+                    "action": "renamed_to_canonical_humidity",
+                    "renamed_to": HUMIDITY_SOURCE_COLUMN,
+                    "reason": (
+                        "BigQuery field keys are case-insensitive; "
+                        f"renamed humidity column {first_name!r} to "
+                        f"{HUMIDITY_SOURCE_COLUMN!r} to match the "
+                        "canonical source name."
+                    ),
+                }
+            )
+        # Reserved keys: case-insensitive view of every column name
+        # already in the frame or already chosen as a rename target,
+        # so a new derived name cannot collide with anything.
+        reserved_keys: set[str] = {
+            bigquery_field_key(c) for c in cols
+        }
+        for new_name in rename_at.values():
+            reserved_keys.add(bigquery_field_key(new_name))
         for dup_idx in rh_idxs[1:]:
             dup_series = df.iloc[:, dup_idx]
+            dup_name = str(cols[dup_idx])
             if _series_equivalent_nan_aware(first_series, dup_series):
                 keep_mask[dup_idx] = False
                 actions.append(
@@ -995,28 +1061,33 @@ def ensure_unique_stage_columns(
                         "column": HUMIDITY_SOURCE_COLUMN,
                         "action": "suppressed_equivalent_duplicate",
                         "renamed_to": None,
+                        "source_column_name": dup_name,
                         "reason": (
-                            "derived duplicate equivalent to source; "
-                            "kept the first occurrence as rH"
+                            f"derived duplicate {dup_name!r} equivalent "
+                            "to source; kept the first occurrence as "
+                            f"{HUMIDITY_SOURCE_COLUMN!r}."
                         ),
                     }
                 )
             else:
                 new_name = HUMIDITY_DERIVED_RENAME
                 n = 2
-                while new_name in reserved:
+                while bigquery_field_key(new_name) in reserved_keys:
                     new_name = f"{HUMIDITY_DERIVED_RENAME}_{n}"
                     n += 1
-                reserved.add(new_name)
+                reserved_keys.add(bigquery_field_key(new_name))
                 rename_at[dup_idx] = new_name
                 actions.append(
                     {
                         "column": HUMIDITY_SOURCE_COLUMN,
                         "action": "renamed_divergent_duplicate",
                         "renamed_to": new_name,
+                        "source_column_name": dup_name,
                         "reason": (
-                            "derived duplicate diverges from source; "
-                            "preserved both as rH and rH_norm_s"
+                            f"derived duplicate {dup_name!r} diverges "
+                            "from source; preserved both as "
+                            f"{HUMIDITY_SOURCE_COLUMN!r} and "
+                            f"{new_name!r}."
                         ),
                     }
                 )
@@ -1029,18 +1100,19 @@ def ensure_unique_stage_columns(
     new_data = df.iloc[:, keep_positions].copy()
     new_data.columns = new_cols
     new_data.attrs[COLUMN_COLLISION_ATTRS_KEY] = list(actions)
-    # Final paranoia check: after rename the resulting frame must have
-    # unique column names. If something went wrong, surface it loudly
-    # so the BigQuery client never sees a duplicate schema.
-    if not pd.Index(new_cols).is_unique:
-        post = sorted(
-            name
-            for name in set(new_cols)
-            if new_cols.count(name) > 1
-        )
+    # Final paranoia check: case-insensitive uniqueness. If something
+    # slipped past the deterministic policy, surface it loudly so the
+    # BigQuery client never sees a duplicate-key schema.
+    final_keys = [bigquery_field_key(c) for c in new_cols]
+    if len(set(final_keys)) != len(final_keys):
+        seen: dict[str, int] = {}
+        for k in final_keys:
+            seen[k] = seen.get(k, 0) + 1
+        post = sorted(k for k, v in seen.items() if v > 1)
         raise DuplicateStageColumnsError(
-            "ensure_unique_stage_columns failed to resolve duplicates: "
-            f"{post}. This is a package bug; please report it.",
+            "ensure_unique_stage_columns failed to resolve duplicates "
+            f"(BigQuery logical keys): {post}. This is a package bug; "
+            "please report it.",
             duplicate_columns=tuple(post),
         )
     return new_data, actions
@@ -1220,9 +1292,20 @@ def prepare_stage_dataframe(
     out["primary_key"] = site_id + "|" + iso_utc
 
     # Lowercase analytical mapping (guide 001 §2.1).
+    #
+    # M31: rename source -> target rather than duplicating. BigQuery
+    # field keys are case-insensitive, so keeping both ``NEE_f`` and
+    # ``nee_f`` would fail at ``load_table_from_dataframe`` with
+    # ``Field nee_f already exists in schema``. The lowercase
+    # analytical names are the user-facing canonical names in the
+    # ``_s2_filt_1`` schema; the uppercase backend-output names are
+    # an internal scientific convention that does not need to survive
+    # into the staged BigQuery payload.
     for src_col, dst_col in S2_FILT_1_RENAME_MAP.items():
         if src_col in out.columns:
-            out[dst_col] = out[src_col]
+            if dst_col in out.columns and dst_col != src_col:
+                out = out.drop(columns=[dst_col])
+            out = out.rename(columns={src_col: dst_col})
 
     # dateAndTime STRING column.
     out["dateAndTime"] = dt.dt.strftime("%Y-%m-%d %H:%M:%S")

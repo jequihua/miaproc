@@ -1,0 +1,22 @@
+﻿[
+  {"name":"primary_key","type":"STRING","mode":"REQUIRED","description":"Stage identity: <site_id>|<iso_utc_timestamp>."},
+  {"name":"site_id","type":"STRING","mode":"REQUIRED","description":"Per-row site/category identifier."},
+  {"name":"timestamp","type":"TIMESTAMP","mode":"REQUIRED","description":"UTC observation timestamp used with site_id as the stage identity key."},
+  {"name":"DateTime","type":"TIMESTAMP","mode":"REQUIRED","description":"Stage-1 timestamp preserved for downstream processing."},
+  {"name":"NEE","type":"FLOAT64","mode":"NULLABLE","description":"Net ecosystem exchange; source alias for co2_flux."},
+  {"name":"QC_NEE","type":"INT64","mode":"NULLABLE","description":"QC class for NEE; source alias for qc_co2_flux."},
+  {"name":"Tair","type":"FLOAT64","mode":"NULLABLE","description":"Air temperature in degrees C; source alias for air_temperature."},
+  {"name":"USTAR","type":"FLOAT64","mode":"NULLABLE","description":"Friction velocity; source alias for u_star or legacy u."},
+  {"name":"VPD","type":"FLOAT64","mode":"NULLABLE","description":"Vapor pressure deficit."},
+  {"name":"Rg","type":"FLOAT64","mode":"NULLABLE","description":"Incoming shortwave radiation; source alias for SWIN_1_1_1."},
+  {"name":"P_RAIN","type":"FLOAT64","mode":"NULLABLE","description":"Precipitation; source alias for P_RAIN_1_1_1."},
+  {"name":"rH","type":"FLOAT64","mode":"NULLABLE","description":"Canonical source relative humidity column after M31 BigQuery-case-insensitive humidity handling."},
+  {"name":"rH_norm_s","type":"FLOAT64","mode":"NULLABLE","description":"Derived/normalized silver humidity column when it diverges from source rH."},
+  {"name":"H","type":"FLOAT64","mode":"NULLABLE","description":"Sensible heat flux preserved from source/silver."},
+  {"name":"qc_H","type":"INT64","mode":"NULLABLE","description":"QC class for H when present."},
+  {"name":"LE","type":"FLOAT64","mode":"NULLABLE","description":"Latent heat flux preserved from source/silver."},
+  {"name":"qc_LE","type":"INT64","mode":"NULLABLE","description":"QC class for LE when present."},
+  {"name":"filename","type":"STRING","mode":"NULLABLE","description":"Optional source pass-through when present."},
+  {"name":"DOY","type":"FLOAT64","mode":"NULLABLE","description":"Optional source pass-through when present."},
+  {"name":"daytime","type":"INT64","mode":"NULLABLE","description":"Optional source pass-through when present."}
+]

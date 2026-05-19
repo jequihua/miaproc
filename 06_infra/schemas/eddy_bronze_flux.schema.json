@@ -1,0 +1,18 @@
+﻿[
+  {"name":"primary_key","type":"STRING","mode":"NULLABLE","description":"Optional source-side stable row identifier. Silver/gold writeback synthesizes one when needed."},
+  {"name":"timestamp","type":"TIMESTAMP","mode":"REQUIRED","description":"Half-hour observation timestamp in UTC."},
+  {"name":"site_id","type":"STRING","mode":"REQUIRED","description":"Site/category identifier used by --group-column site_id in the split CLI."},
+  {"name":"co2_flux","type":"FLOAT64","mode":"NULLABLE","description":"EddyPro CO2 flux; represented as NEE in silver/gold payloads."},
+  {"name":"qc_co2_flux","type":"INT64","mode":"NULLABLE","description":"QC class for co2_flux; represented as QC_NEE in silver/gold payloads."},
+  {"name":"air_temperature","type":"FLOAT64","mode":"NULLABLE","description":"Air temperature in K; represented as Tair after unit conversion."},
+  {"name":"u_star","type":"FLOAT64","mode":"NULLABLE","description":"Friction velocity; represented as USTAR."},
+  {"name":"VPD","type":"FLOAT64","mode":"NULLABLE","description":"Vapor pressure deficit; consumed by gap filling and partitioning."},
+  {"name":"H","type":"FLOAT64","mode":"NULLABLE","description":"Sensible heat flux; preserved through silver/gold when present."},
+  {"name":"qc_H","type":"INT64","mode":"NULLABLE","description":"QC class for H."},
+  {"name":"LE","type":"FLOAT64","mode":"NULLABLE","description":"Latent heat flux; preserved through silver/gold when present."},
+  {"name":"qc_LE","type":"INT64","mode":"NULLABLE","description":"QC class for LE."},
+  {"name":"RH","type":"FLOAT64","mode":"NULLABLE","description":"Relative humidity source column when present in flux exports. M31 canonicalizes this logical field to rH in stage payloads."},
+  {"name":"filename","type":"STRING","mode":"NULLABLE","description":"Optional EddyPro source filename pass-through."},
+  {"name":"DOY","type":"FLOAT64","mode":"NULLABLE","description":"Optional EddyPro day-of-year pass-through."},
+  {"name":"daytime","type":"INT64","mode":"NULLABLE","description":"Optional EddyPro daytime flag pass-through."}
+]

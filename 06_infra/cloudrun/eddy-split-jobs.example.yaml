@@ -1,0 +1,251 @@
+﻿# Eddy silver dry-run. Reads BigQuery and writes local payload artifacts only.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-silver-dry-run-example
+  namespace: <PROJECT_ID>
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: silver-dry-run
+    example: "true"
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+          maxRetries: 0
+          timeoutSeconds: 1800
+          containers:
+          - name: miaproc
+            image: <IMAGE_URI>
+            command: ["miaproc"]
+            args:
+            - eddy
+            - run-bigquery-silver
+            - --bq-input-project=<INPUT_PROJECT>
+            - --bq-input-dataset=<INPUT_DATASET>
+            - --bq-flux-table=<FLUX_TABLE>
+            - --bq-biomet-table=<BIOMET_TABLE>
+            - --bq-billing-project=<BILLING_PROJECT>
+            - --group-column=site_id
+            - --bq-output-project=<OUTPUT_PROJECT>
+            - --bq-output-dataset=<OUTPUT_DATASET>
+            - --bq-stage-table=<SILVER_STAGE_TABLE>
+            - --bq-control-dataset=<CONTROL_DATASET>
+            - --stage-payload-dry-run-dir=/tmp/silver_dry_run
+            - --output-table=/tmp/silver.parquet
+            - --output-run-json=/tmp/silver_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <BILLING_PROJECT>
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi
+---
+# Eddy silver writeback. Mutates the silver stage/control tables.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-silver-writeback-example
+  namespace: <PROJECT_ID>
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: silver-writeback
+    example: "true"
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+          maxRetries: 0
+          timeoutSeconds: 1800
+          containers:
+          - name: miaproc
+            image: <IMAGE_URI>
+            command: ["miaproc"]
+            args:
+            - eddy
+            - run-bigquery-silver
+            - --bq-input-project=<INPUT_PROJECT>
+            - --bq-input-dataset=<INPUT_DATASET>
+            - --bq-flux-table=<FLUX_TABLE>
+            - --bq-biomet-table=<BIOMET_TABLE>
+            - --bq-billing-project=<BILLING_PROJECT>
+            - --group-column=site_id
+            - --bq-output-project=<OUTPUT_PROJECT>
+            - --bq-output-dataset=<OUTPUT_DATASET>
+            - --bq-stage-table=<SILVER_STAGE_TABLE>
+            - --bq-control-dataset=<CONTROL_DATASET>
+            - --output-table=/tmp/silver.parquet
+            - --output-run-json=/tmp/silver_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <BILLING_PROJECT>
+            resources:
+              limits:
+                cpu: "2"
+                memory: 4Gi
+---
+# Eddy gold dry-run. Reads silver, runs the selected engine, and writes local payload artifacts only.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-gold-dry-run-example
+  namespace: <PROJECT_ID>
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: gold-dry-run
+    example: "true"
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+          maxRetries: 0
+          timeoutSeconds: 3600
+          containers:
+          - name: miaproc
+            image: <IMAGE_URI>
+            command: ["miaproc"]
+            args:
+            - eddy
+            - run-bigquery-gold
+            - --engine=reddyproc-reference
+            - --bq-input-project=<OUTPUT_PROJECT>
+            - --bq-input-dataset=<OUTPUT_DATASET>
+            - --bq-silver-table=<SILVER_STAGE_OR_FINAL_TABLE>
+            - --bq-billing-project=<BILLING_PROJECT>
+            - --group-column=site_id
+            - --repo-root=/app
+            - --bq-output-project=<OUTPUT_PROJECT>
+            - --bq-output-dataset=<OUTPUT_DATASET>
+            - --bq-stage-table=<GOLD_STAGE_TABLE>
+            - --bq-final-table=<GOLD_FINAL_TABLE>
+            - --bq-control-dataset=<CONTROL_DATASET>
+            - --bq-allow-final-merge
+            - --stage-payload-dry-run-dir=/tmp/gold_dry_run
+            - --output-table=/tmp/gold.parquet
+            - --output-diagnostics-json=/tmp/gold_diag.json
+            - --output-run-json=/tmp/gold_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <BILLING_PROJECT>
+            resources:
+              limits:
+                cpu: "2"
+                memory: 8Gi
+---
+# Eddy gold stage-only writeback. Mutates gold stage/control tables, but does not MERGE final.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-gold-stage-example
+  namespace: <PROJECT_ID>
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: gold-stage
+    example: "true"
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+          maxRetries: 0
+          timeoutSeconds: 3600
+          containers:
+          - name: miaproc
+            image: <IMAGE_URI>
+            command: ["miaproc"]
+            args:
+            - eddy
+            - run-bigquery-gold
+            - --engine=reddyproc-reference
+            - --bq-input-project=<OUTPUT_PROJECT>
+            - --bq-input-dataset=<OUTPUT_DATASET>
+            - --bq-silver-table=<SILVER_STAGE_OR_FINAL_TABLE>
+            - --bq-billing-project=<BILLING_PROJECT>
+            - --group-column=site_id
+            - --repo-root=/app
+            - --bq-output-project=<OUTPUT_PROJECT>
+            - --bq-output-dataset=<OUTPUT_DATASET>
+            - --bq-stage-table=<GOLD_STAGE_TABLE>
+            - --bq-control-dataset=<CONTROL_DATASET>
+            - --output-table=/tmp/gold.parquet
+            - --output-diagnostics-json=/tmp/gold_diag.json
+            - --output-run-json=/tmp/gold_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <BILLING_PROJECT>
+            resources:
+              limits:
+                cpu: "2"
+                memory: 8Gi
+---
+# Eddy gold explicit merge. Mutates gold stage/control/final tables.
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: miaproc-eddy-gold-merge-example
+  namespace: <PROJECT_ID>
+  labels:
+    app: miaproc
+    domain: eddy
+    stage: gold-merge
+    example: "true"
+spec:
+  template:
+    spec:
+      parallelism: 1
+      taskCount: 1
+      template:
+        spec:
+          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
+          maxRetries: 0
+          timeoutSeconds: 3600
+          containers:
+          - name: miaproc
+            image: <IMAGE_URI>
+            command: ["miaproc"]
+            args:
+            - eddy
+            - run-bigquery-gold
+            - --engine=reddyproc-reference
+            - --bq-input-project=<OUTPUT_PROJECT>
+            - --bq-input-dataset=<OUTPUT_DATASET>
+            - --bq-silver-table=<SILVER_STAGE_OR_FINAL_TABLE>
+            - --bq-billing-project=<BILLING_PROJECT>
+            - --group-column=site_id
+            - --repo-root=/app
+            - --bq-output-project=<OUTPUT_PROJECT>
+            - --bq-output-dataset=<OUTPUT_DATASET>
+            - --bq-stage-table=<GOLD_STAGE_TABLE>
+            - --bq-final-table=<GOLD_FINAL_TABLE>
+            - --bq-control-dataset=<CONTROL_DATASET>
+            - --bq-allow-final-merge
+            - --output-table=/tmp/gold.parquet
+            - --output-diagnostics-json=/tmp/gold_diag.json
+            - --output-run-json=/tmp/gold_run.json
+            env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: <BILLING_PROJECT>
+            resources:
+              limits:
+                cpu: "2"
+                memory: 8Gi

@@ -1,0 +1,8 @@
+﻿[
+  {"name":"primary_key","type":"STRING","mode":"NULLABLE","description":"Optional source-side stable row identifier."},
+  {"name":"timestamp","type":"TIMESTAMP","mode":"REQUIRED","description":"Half-hour observation timestamp in UTC."},
+  {"name":"site_id","type":"STRING","mode":"REQUIRED","description":"Site/category identifier used by --group-column site_id in the split CLI."},
+  {"name":"SWIN_1_1_1","type":"FLOAT64","mode":"NULLABLE","description":"Incoming shortwave radiation; represented as Rg."},
+  {"name":"P_RAIN_1_1_1","type":"FLOAT64","mode":"NULLABLE","description":"Half-hour precipitation; represented as P_RAIN."},
+  {"name":"RH_1_1_1","type":"FLOAT64","mode":"NULLABLE","description":"Relative humidity; represented as rH unless a flux-side humidity column is canonicalized first."}
+]

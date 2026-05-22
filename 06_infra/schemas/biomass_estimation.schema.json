@@ -1,0 +1,188 @@
+[
+  {
+    "name": "primary_key",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the register."
+  },
+  {
+    "name": "study_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique identifier for the study."
+  },
+  {
+    "name": "mangrove_type",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Structural/ecological type of mangrove system. Variables: fringe; basin; riverine; overwash; dwarf"
+  },
+  {
+    "name": "site_condition",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Ecological condition category of site. Variables: restored; conserved; degraded"
+  },
+  {
+    "name": "country",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Country or territory identification."
+  },
+  {
+    "name": "protected_area",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Protected area designation."
+  },
+  {
+    "name": "location",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Locality name."
+  },
+  {
+    "name": "site_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique site identifier."
+  },
+  {
+    "name": "manglaria_site_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "ManglarIA project-specific site ID."
+  },
+  {
+    "name": "date_of_collection",
+    "type": "DATE",
+    "mode": "REQUIRED",
+    "description": "Date of data collection. Unit: DD/MM/YYYY"
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Latitude coordinate. Unit: decimal degrees"
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT64",
+    "mode": "REQUIRED",
+    "description": "Longitude coordinate. Unit: decimal degrees"
+  },
+  {
+    "name": "plot_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Plot identifier."
+  },
+  {
+    "name": "plot_length_x_m",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Plot length x. Unit: m"
+  },
+  {
+    "name": "plot_length_y_m",
+    "type": "NUMERIC",
+    "mode": "NULLABLE",
+    "description": "Plot length y. Unit: m"
+  },
+  {
+    "name": "plot_area_m2",
+    "type": "NUMERIC",
+    "mode": "REQUIRED",
+    "description": "Plot area. Unit: m2"
+  },
+  {
+    "name": "position_method",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Method used to obtain coordinates. Stored as STRING in BigQuery schema examples."
+  },
+  {
+    "name": "species",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Scientific species name."
+  },
+  {
+    "name": "species_code",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Species identification code."
+  },
+  {
+    "name": "dbh_cm",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Diameter at breast height. Unit: cm"
+  },
+  {
+    "name": "tree_height_m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Total tree height. Unit: m"
+  },
+  {
+    "name": "root_height_m",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Height of exposed roots or prop roots. Unit: m"
+  },
+  {
+    "name": "stump_diameter",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Diameter of stump. Unit: cm"
+  },
+  {
+    "name": "stump_height",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Height of stump. Unit: cm"
+  },
+  {
+    "name": "life_stage",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Life stage classification. Variables: Juvenile; Adult"
+  },
+  {
+    "name": "condition",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Tree condition. Variables: Live; Dead"
+  },
+  {
+    "name": "tree_height_method",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Method used to measure height. Variables: rod; clinometer"
+  },
+  {
+    "name": "presence_invasive_sp",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Presence of Cissus verticilata liana."
+  },
+  {
+    "name": "girth_cm",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Tree girth. Unit: cm"
+  },
+  {
+    "name": "biomass_estimate",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Biomass estimate appended by miaproc.biomass.enrich_table / miaproc biomass run-bigquery. For default dataset dina, units are kg and estimates are produced only for eligible adult trees with dbh_cm."
+  },
+  {
+    "name": "equation_used",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "source_record_id of the equation actually used to produce biomass_estimate, e.g. dina_001..dina_004. Null when the row is ineligible, unmatched, or biomass_estimate is null."
+  }
+]

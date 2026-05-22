@@ -1,12 +1,29 @@
-﻿# Eddy BigQuery Schema Examples
+# BigQuery Schema Examples
 
-These files are BigQuery TableSchema JSON examples for the eddy bronze,
-silver, and gold layers. They are handoff material for cloud engineers, not
-proof that live tables have already been minted from these exact files.
+These files are BigQuery TableSchema JSON examples for `miaproc` cloud handoff.
+They are engineer-facing templates, not proof that live tables have already
+been created from these exact files.
+
+Use these schemas as a starting point, then verify against the exact payload
+produced by the package for the source table and flags your team is running.
+
+## Files
+
+| Domain | Layer | File | Purpose |
+|---|---|---|---|
+| Eddy | Bronze flux | `eddy_bronze_flux.schema.json` | Example source-table contract for flux variables used by miaproc. |
+| Eddy | Bronze biomet | `eddy_bronze_biomet.schema.json` | Example source-table contract for biomet variables used by miaproc. |
+| Eddy | Silver | `eddy_silver.schema.json` | Example silver payload schema after source aliasing and humidity deduplication. |
+| Eddy | Gold | `eddy_gold.schema.json` | Example gold payload schema after preserving silver columns and appending backend/lakehouse columns. |
+| Biomass | Forest-structure source | `biomass_forest_structure_source.schema.json` | Canonical individual-tree source schema from `08_pkg/docs/forest_data_schema.csv`. |
+| Biomass | Estimation output | `biomass_estimation.schema.json` | Row-preserving biomass product: source columns plus `biomass_estimate` and `equation_used`. |
+| Biomass | Runs control | `biomass_runs.schema.json` | Control/audit schema for `cf_biomass_runs`, created by biomass BigQuery writeback. |
+
+## Eddy Notes
 
 M31 status:
 
-- The package runs eddy BigQuery processing in two explicit stages:
+- Eddy BigQuery processing runs in two explicit stages:
   `miaproc eddy run-bigquery-silver` and then
   `miaproc eddy run-bigquery-gold`.
 - Stage payload dry-run metadata is the authoritative way to inspect the exact
@@ -22,24 +39,8 @@ M31 status:
   humidity column is present, it is written as `rH_norm_s`; non-humidity
   duplicate field keys fail loudly.
 
-## Files
-
-| Layer | File | Purpose |
-|---|---|---|
-| Bronze flux | `eddy_bronze_flux.schema.json` | Example source-table contract for flux variables used by miaproc. |
-| Bronze biomet | `eddy_bronze_biomet.schema.json` | Example source-table contract for biomet variables used by miaproc. |
-| Silver | `eddy_silver.schema.json` | Example silver stage/final payload schema after source aliasing and humidity deduplication. |
-| Gold | `eddy_gold.schema.json` | Example gold payload schema after preserving silver columns and appending backend/lakehouse columns. |
-
-## Recommended Operator Workflow
-
-Before pre-creating or altering BigQuery tables, run the Docker/CLI dry-run
-against the actual cloud source tables and inspect:
-
-```text
-stage_payload_metadata.json
-```
-
+Before pre-creating or altering eddy BigQuery tables, run the Docker/CLI dry-run
+against the actual cloud source tables and inspect `stage_payload_metadata.json`.
 Load-bearing fields should show:
 
 ```text
@@ -53,24 +54,37 @@ watermark_advanced: false
 ```
 
 Use `columns` and `dtypes` in that metadata as the final source of truth for a
-specific deployment. These JSON schema files are useful templates, but real
-EddyPro exports can carry site-specific pass-through columns beyond this core
-set.
+specific eddy deployment. Real EddyPro exports can carry site-specific
+pass-through columns beyond the core set listed here.
 
-## Identity Contract
+## Biomass Notes
 
-Silver and gold writeback payloads include:
+The biomass product is intentionally row-preserving:
 
-- `primary_key` - deterministic `<site_id>|<iso_utc_timestamp>` string.
-- `site_id` - per-row site/category value, usually grouped with
-  `--group-column site_id`.
-- `timestamp` - UTC observation timestamp used with `site_id` as the MERGE key.
+- `miaproc biomass enrich-table` reads a local table and writes the same rows
+  plus exactly two appended columns by default: `biomass_estimate` and
+  `equation_used`.
+- `miaproc biomass run-bigquery` reads one BigQuery source table, applies the
+  same enrichment contract in memory, writes local output, and optionally stages
+  / merges the enriched rows when writeback flags are supplied.
+- The default equation dataset is `dina`, the direct-biomass mangrove equation
+  set. Under this default, adult rows with non-null `dbh_cm` and matched species
+  can receive biomass estimates in kg; ineligible rows are preserved with null
+  `biomass_estimate` and null `equation_used`.
+- The default merge key for BigQuery writeback is `primary_key`. Deployments can
+  override it with `--bq-merge-key`, but the chosen key must be present, non-null,
+  and unique in the staged frame.
+- Biomass has no watermark table by design. The control table is
+  `cf_biomass_runs` only.
 
-Stage validation rejects null identity values and duplicate identity keys.
-Watermarks advance only after an explicit successful gold MERGE.
+`biomass_estimation.schema.json` uses the canonical source-field names from
+`08_pkg/docs/forest_data_schema.csv`. If an operator-owned source table uses
+legacy or survey-specific names, normalize them before enrichment or pass the
+CLI column-mapping flags (`--species-col`, `--dbh-col`, `--height-col`,
+`--life-stage-col`) and adjust the table schema accordingly.
 
 ## Cloud Safety
 
 The package default rejects writes to project `manglaria`. Use staging/output
 projects for stage/final/control tables unless governance explicitly authorizes
-otherwise.
+otherwise. Do not commit service-account keys or local Google credential files.

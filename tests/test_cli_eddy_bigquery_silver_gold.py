@@ -298,10 +298,27 @@ class TestBigQuerySilverStage:
         assert run_path.exists()
 
         df = pd.read_csv(silver_path)
-        for col in ("DateTime", "NEE", "USTAR", "Tair", "Rg", "QC_NEE"):
+        # M32 / M32A: silver local table uses source-truth final
+        # names for the inherited carbon-flux / biomet variables.
+        # The internal ``DateTime`` time column is renamed to
+        # ``timestamp`` per the lineage CSV.
+        for col in (
+            "timestamp",
+            "co2_flux",
+            "u_star",
+            "air_temperature_c",
+            "SWIN_1_1_1",
+            "qc_co2_flux",
+        ):
             assert col in df.columns, col
-        for col in ("H", "LE", "P_RAIN", "rH"):
+        for col in ("H", "LE", "P_RAIN_1_1_1", "RH_1_1_1"):
             assert col in df.columns, col
+        # Backend-only inherited names are gone from the silver
+        # output under the M32 / M32A contract.
+        for backend in (
+            "DateTime", "NEE", "USTAR", "Tair", "Rg", "QC_NEE", "rH",
+        ):
+            assert backend not in df.columns, backend
 
         run = json.loads(run_path.read_text(encoding="utf-8"))
         assert run["stage"] == "silver"
@@ -1957,13 +1974,22 @@ def _patch_cloud_silver_pipeline(monkeypatch, *, diverge_rh: bool = True):
     return SimpleNamespace(calls=calls)
 
 
-class TestSilverDryRunCloudShapeAliasResolutionM31:
-    """M31 fix A: the dry-run preservation guard must understand
-    that raw bronze column names (``co2_flux``, ``u_star``, ...) are
-    represented in the silver payload by their canonical stage1
-    aliases (``NEE``, ``USTAR``, ...). The cloud engineers' run
-    failed with ``unique input columns missing ... co2_flux, ...``
-    even though the silver payload was correct."""
+class TestSilverDryRunCloudShapeAliasResolutionM32:
+    """M32 reshapes the M31 alias-resolution and humidity-collision
+    behavior:
+
+    - Most raw bronze names (``co2_flux``, ``qc_co2_flux``,
+      ``u_star``, ``RH``) survive into the silver payload under
+      their bronze names exactly because M32's source-truth contract
+      uses those bronze-facing final names. Only the unit-transformed
+      ``air_temperature`` and ``VPD`` (and the legacy ``u.``) need
+      an explicit alias.
+    - Flux ``RH`` and biomet ``rH`` no longer collide on the
+      case-insensitive BigQuery field key because biomet ``rH`` is
+      renamed to its source-truth final name ``RH_1_1_1`` before the
+      unique-column guard. The M31 ``rH``/``rH_norm_s`` workaround
+      is no longer triggered for the realistic cloud-shape input.
+    """
 
     def test_silver_dry_run_accepts_normalized_aliases(
         self, tmp_path, monkeypatch
@@ -1986,7 +2012,7 @@ class TestSilverDryRunCloudShapeAliasResolutionM31:
         )
         rc = cli.main(argv)
         assert rc == cli.SUCCESS_EXIT, (
-            "silver dry-run must not raise on normalized bronze "
+            "silver dry-run must not raise on cloud-shape bronze "
             "columns; cloud engineers reported "
             "ValueError 'unique input columns missing ... co2_flux ...'"
         )
@@ -1996,31 +2022,37 @@ class TestSilverDryRunCloudShapeAliasResolutionM31:
                 encoding="utf-8"
             )
         )
-        # The cloud-failure-shaped raw columns are all preserved
-        # under their canonical silver names, and the alias map
-        # records the resolutions explicitly.
+        # The cloud-shape raw columns are all preserved. Bronze names
+        # that match their source-truth final name (co2_flux,
+        # qc_co2_flux, u_star, RH, bronze_only_flag, site_id,
+        # timestamp) resolve via exact match and are *not* recorded
+        # in the alias map. Only unit-transformed ``air_temperature``
+        # appears as an explicit alias under M32.
         assert meta["missing_input_columns"] == [], meta
         aliases = meta["input_column_payload_aliases"]
-        assert aliases["co2_flux"] == "NEE"
-        assert aliases["qc_co2_flux"] == "QC_NEE"
-        assert aliases["air_temperature"] == "Tair"
-        assert aliases["u_star"] == "USTAR"
-        # ``RH`` was canonicalized to ``rH`` by the M31 humidity
-        # policy and so also resolves via alias.
-        assert aliases["RH"] == "rH"
+        assert aliases.get("air_temperature") == "air_temperature_c"
+        # Identity-mapped bronze columns are *not* in the alias map.
+        for exact_match in (
+            "co2_flux",
+            "qc_co2_flux",
+            "u_star",
+            "RH",
+            "bronze_only_flag",
+            "site_id",
+            "timestamp",
+        ):
+            assert exact_match not in aliases, (exact_match, aliases)
         for raw_name in (
-            "co2_flux", "qc_co2_flux", "air_temperature", "u_star", "RH",
+            "co2_flux",
+            "qc_co2_flux",
+            "air_temperature",
+            "u_star",
+            "RH",
+            "bronze_only_flag",
+            "site_id",
+            "timestamp",
         ):
             assert raw_name in meta["preserved_input_columns"], raw_name
-
-        # Bronze-only sentinel (no canonical alias) survives
-        # naturally via the silver frame and is preserved directly.
-        assert "bronze_only_flag" in meta["preserved_input_columns"]
-        assert "bronze_only_flag" not in aliases
-
-        # Identity columns sourced from bronze are still preserved.
-        assert "site_id" in meta["preserved_input_columns"]
-        assert "timestamp" in meta["preserved_input_columns"]
 
         # Run JSON records the dry-run success and never engaged BQ.
         run = json.loads(
@@ -2058,39 +2090,47 @@ class TestSilverDryRunCloudShapeAliasResolutionM31:
                 encoding="utf-8"
             )
         )
-        # M31 strictness: columns_unique is true only when
-        # case-insensitive keys are all distinct.
+        # M32: ``columns_unique`` is still strict under case-folded
+        # BigQuery keys, but the cloud-shape ``RH`` + ``rH`` no
+        # longer collide because biomet ``rH`` is now ``RH_1_1_1``.
         assert meta["columns_unique"] is True
         assert meta["duplicate_columns"] == []
-        # The cloud failure ``Field rH already exists in schema`` is
-        # now impossible: ``RH`` is gone, ``rH`` and ``rH_norm_s``
-        # coexist with distinct case-folded keys.
-        assert "RH" not in meta["columns"]
-        assert "rH" in meta["columns"]
-        assert "rH_norm_s" in meta["columns"]
+        # Flux ``RH`` survives under its bronze name; biomet ``rH``
+        # surfaces under its source-truth final name ``RH_1_1_1``.
+        # Neither ``rH`` (the legacy biomet internal alias) nor the
+        # ``rH_norm_s`` workaround appears in the M32 payload.
+        assert "RH" in meta["columns"]
+        assert "RH_1_1_1" in meta["columns"]
+        assert "rH" not in meta["columns"]
+        assert "rH_norm_s" not in meta["columns"]
         keys_lower = [c.casefold() for c in meta["columns"]]
         assert len(set(keys_lower)) == len(keys_lower), meta["columns"]
 
-        # The collision action surfaces the divergent-derived
-        # rename so the operator sees the M28/M31 resolution.
+        # No legacy humidity collision action fires under M32.
         actions = meta["column_collision_actions"]
-        assert any(
-            a["column"] == "rH"
-            and a["action"] == "renamed_divergent_duplicate"
-            and a["renamed_to"] == "rH_norm_s"
-            for a in actions
-        ), actions
+        for action_kind in (
+            "renamed_to_canonical_humidity",
+            "renamed_divergent_duplicate",
+            "suppressed_equivalent_duplicate",
+        ):
+            assert not any(
+                a["action"] == action_kind for a in actions
+            ), (action_kind, actions)
 
-        # Payload CSV survives a round-trip with the same column
-        # names (no silent lowercase by pandas/CSV).
+        # Payload CSV round-trip uses the source-truth final names.
         df = pd.read_csv(dry_dir / "stage_payload.csv")
-        assert "rH" in df.columns
-        assert "rH_norm_s" in df.columns
-        assert "RH" not in df.columns
+        assert "RH" in df.columns
+        assert "RH_1_1_1" in df.columns
+        assert "rH" not in df.columns
+        assert "rH_norm_s" not in df.columns
 
-    def test_silver_dry_run_equivalent_RH_rH_collapses_via_collision(
+    def test_silver_dry_run_equivalent_RH_rH_preserved_separately(
         self, tmp_path, monkeypatch
     ):
+        """M32: even when flux ``RH`` and biomet ``rH`` carry
+        identical values, the source-truth contract preserves both
+        as ``RH`` and ``RH_1_1_1`` because they are different
+        physical sources (flux EddyPro vs biomet station)."""
         _patch_cloud_silver_pipeline(monkeypatch, diverge_rh=False)
 
         import miaproc.eddy as eddy_pkg
@@ -2114,14 +2154,19 @@ class TestSilverDryRunCloudShapeAliasResolutionM31:
                 encoding="utf-8"
             )
         )
-        assert "rH" in meta["columns"]
+        assert "RH" in meta["columns"]
+        assert "RH_1_1_1" in meta["columns"]
+        assert "rH" not in meta["columns"]
         assert "rH_norm_s" not in meta["columns"]
         actions = meta["column_collision_actions"]
-        # Both: canonicalization of the first variant + suppression
-        # of the equivalent derived duplicate.
-        kinds = {a["action"] for a in actions}
-        assert "renamed_to_canonical_humidity" in kinds
-        assert "suppressed_equivalent_duplicate" in kinds
+        # No legacy humidity collision action under M32 (the
+        # case-insensitive collision is gone, so there is nothing to
+        # canonicalize or suppress).
+        for action_kind in (
+            "renamed_to_canonical_humidity",
+            "suppressed_equivalent_duplicate",
+        ):
+            assert not any(a["action"] == action_kind for a in actions)
 
     def test_silver_dry_run_strict_when_bronze_column_truly_unrepresented(
         self, tmp_path, monkeypatch
@@ -2248,14 +2293,22 @@ class TestSilverNonDryRunHandsBigQueryCompatiblePayloadM31:
         assert staged is not None, "run_writeback was not called"
         # pandas-level uniqueness still holds.
         assert staged.columns.is_unique
-        # M31 strictness: BigQuery field keys are case-insensitive.
+        # M31 strictness inherited by M32: BigQuery field keys must
+        # be unique case-insensitively, so ``load_table_from_dataframe``
+        # never surfaces ``Field rH already exists in schema``.
         keys = [str(c).casefold() for c in staged.columns]
         assert len(set(keys)) == len(keys), list(staged.columns)
-        # ``RH`` + ``rH`` -> ``rH`` + ``rH_norm_s``; the original
-        # case-variant ``RH`` is gone.
-        assert "RH" not in staged.columns
-        assert "rH" in staged.columns
-        assert "rH_norm_s" in staged.columns
+        # M32: under the source-truth contract, flux ``RH`` is
+        # preserved separately and biomet ``rH`` is renamed to its
+        # source-truth final name ``RH_1_1_1`` before the unique-
+        # column guard, so the case-only collision no longer exists.
+        assert "RH" in staged.columns
+        assert "RH_1_1_1" in staged.columns
+        assert "rH" not in staged.columns
+        assert "rH_norm_s" not in staged.columns
+        # Backend-only inherited names are gone from the payload.
+        for backend in ("NEE", "USTAR", "Tair", "VPD", "Rg", "QC_NEE"):
+            assert backend not in staged.columns, backend
         # Production read-only stays intact: the operator pointed
         # writes at the staging project.
         assert captured["cfg"].output_project == "manglaria-staging"

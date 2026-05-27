@@ -47,6 +47,29 @@ merge_attempted: false
 watermark_advanced: false
 ```
 
-For the known M31 humidity shape, the silver payload should contain `rH` and, when values diverge, `rH_norm_s`; it should not contain a BigQuery-case-insensitive duplicate such as both `RH` and `rH`.
+Under the accepted M32A source-truth contract, the silver and gold dry-run
+`columns` should carry source-truth final names and a single `timestamp`
+column (no internal `DateTime`, `NEE`, `Tair`, `USTAR`, `VPD`, `Rg`,
+`P_RAIN`, or `rH` in the final payload). Flux-side `RH` and biomet-side
+`RH_1_1_1` are case-insensitively distinct and may both appear. The M28
+defensive `rH_norm_s` fallback still resolves a divergent derived humidity
+column; non-humidity case-insensitive duplicates raise rather than being
+silently fused.
 
 For mutating jobs, keep production source projects read-only and write only to your staging/output project unless governance explicitly authorizes otherwise. The package default still rejects writes to project `manglaria`.
+
+## M35 disposable smoke
+
+Before treating any of these YAMLs as the basis of a recurring job, run
+the disposable BigQuery stage-write smoke documented in
+`06_infra/eddy_handoff.md` ("Disposable BigQuery smoke commands (M35)").
+That smoke runs locally from the engineer's machine through the same
+Docker image the Cloud Run Job would use, writes to
+`cf_s2_*_stage_m35_smoke_<YYYYMMDDHHMMSS>` disposable tables in
+`manglaria-staging`, verifies the silver/gold schemas are casefold-unique
+and carry the widened M34 carbon-flux pass-through (`h2o_flux`,
+`qc_h2o_flux`, `sonic_temperature`, `air_pressure`, `wind_speed`, `TKE`,
+`v_var`, `RH`, …) under source-truth names, and is cleaned up with
+`bq rm -f -t ...` immediately after. The Cloud Run YAML must not be
+applied against a canonical final table until the disposable smoke has
+been accepted.

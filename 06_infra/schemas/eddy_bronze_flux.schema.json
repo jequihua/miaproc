@@ -1,18 +1,326 @@
-﻿[
-  {"name":"primary_key","type":"STRING","mode":"NULLABLE","description":"Optional source-side stable row identifier. Silver/gold writeback synthesizes one when needed."},
-  {"name":"timestamp","type":"TIMESTAMP","mode":"REQUIRED","description":"Half-hour observation timestamp in UTC."},
-  {"name":"site_id","type":"STRING","mode":"REQUIRED","description":"Site/category identifier used by --group-column site_id in the split CLI."},
-  {"name":"co2_flux","type":"FLOAT64","mode":"NULLABLE","description":"EddyPro CO2 flux; represented as NEE in silver/gold payloads."},
-  {"name":"qc_co2_flux","type":"INT64","mode":"NULLABLE","description":"QC class for co2_flux; represented as QC_NEE in silver/gold payloads."},
-  {"name":"air_temperature","type":"FLOAT64","mode":"NULLABLE","description":"Air temperature in K; represented as Tair after unit conversion."},
-  {"name":"u_star","type":"FLOAT64","mode":"NULLABLE","description":"Friction velocity; represented as USTAR."},
-  {"name":"VPD","type":"FLOAT64","mode":"NULLABLE","description":"Vapor pressure deficit; consumed by gap filling and partitioning."},
-  {"name":"H","type":"FLOAT64","mode":"NULLABLE","description":"Sensible heat flux; preserved through silver/gold when present."},
-  {"name":"qc_H","type":"INT64","mode":"NULLABLE","description":"QC class for H."},
-  {"name":"LE","type":"FLOAT64","mode":"NULLABLE","description":"Latent heat flux; preserved through silver/gold when present."},
-  {"name":"qc_LE","type":"INT64","mode":"NULLABLE","description":"QC class for LE."},
-  {"name":"RH","type":"FLOAT64","mode":"NULLABLE","description":"Relative humidity source column when present in flux exports. M31 canonicalizes this logical field to rH in stage payloads."},
-  {"name":"filename","type":"STRING","mode":"NULLABLE","description":"Optional EddyPro source filename pass-through."},
-  {"name":"DOY","type":"FLOAT64","mode":"NULLABLE","description":"Optional EddyPro day-of-year pass-through."},
-  {"name":"daytime","type":"INT64","mode":"NULLABLE","description":"Optional EddyPro daytime flag pass-through."}
+[
+  {
+    "name": "primary_key",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Source-side stable row identifier for deterministic provenance and writeback keys."
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Half-hour observation timestamp in UTC."
+  },
+  {
+    "name": "filename",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "EddyPro source filename associated with the half-hour record."
+  },
+  {
+    "name": "DOY",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro day-of-year value from the source export."
+  },
+  {
+    "name": "daytime",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro daytime flag from the source export."
+  },
+  {
+    "name": "H",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Sensible heat flux from the carbon-flux source table."
+  },
+  {
+    "name": "qc_H",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for sensible heat flux H."
+  },
+  {
+    "name": "LE",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Latent heat flux from the carbon-flux source table."
+  },
+  {
+    "name": "qc_LE",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for latent heat flux LE."
+  },
+  {
+    "name": "co2_flux",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 flux from the carbon-flux source table; internal eddy processing uses NEE."
+  },
+  {
+    "name": "qc_co2_flux",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for co2_flux; internal eddy processing uses QC_NEE."
+  },
+  {
+    "name": "h2o_flux",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Water-vapor flux from the carbon-flux source table; pass-through provenance field."
+  },
+  {
+    "name": "qc_h2o_flux",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for h2o_flux; pass-through provenance field."
+  },
+  {
+    "name": "H_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Storage correction term for sensible heat flux from the source export."
+  },
+  {
+    "name": "LE_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Storage correction term for latent heat flux from the source export."
+  },
+  {
+    "name": "co2_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 storage term from the source export."
+  },
+  {
+    "name": "h2o_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O storage term from the source export."
+  },
+  {
+    "name": "co2_molar_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 molar density from the source export."
+  },
+  {
+    "name": "co2_mole_fraction",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 mole fraction from the source export."
+  },
+  {
+    "name": "co2_mixing_ratio",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 mixing ratio from the source export."
+  },
+  {
+    "name": "h2o_molar_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O molar density from the source export."
+  },
+  {
+    "name": "h2o_mole_fraction",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O mole fraction from the source export."
+  },
+  {
+    "name": "h2o_mixing_ratio",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O mixing ratio from the source export."
+  },
+  {
+    "name": "sonic_temperature",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Sonic temperature from the source export."
+  },
+  {
+    "name": "air_temperature",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air temperature from the carbon-flux source table, expected in K before miaproc conversion."
+  },
+  {
+    "name": "air_pressure",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air pressure from the source export."
+  },
+  {
+    "name": "air_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air density from the source export."
+  },
+  {
+    "name": "air_heat_capacity",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air heat capacity from the source export."
+  },
+  {
+    "name": "air_molar_volume",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air molar volume from the source export."
+  },
+  {
+    "name": "ET",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Evapotranspiration from the source export."
+  },
+  {
+    "name": "water_vapor_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Water-vapor density from the source export."
+  },
+  {
+    "name": "e",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Actual vapor pressure from the source export."
+  },
+  {
+    "name": "es",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Saturation vapor pressure from the source export."
+  },
+  {
+    "name": "specific_humidity",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Specific humidity from the source export."
+  },
+  {
+    "name": "RH",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Flux-side relative humidity from the carbon-flux source table; preserved separately from biomet RH_1_1_1."
+  },
+  {
+    "name": "VPD",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Vapor pressure deficit from the carbon-flux source table, expected in Pa before miaproc conversion."
+  },
+  {
+    "name": "Tdew",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Dew-point temperature from the source export."
+  },
+  {
+    "name": "wind_speed",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Mean wind speed from the source export."
+  },
+  {
+    "name": "max_wind_speed",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Maximum wind speed from the source export."
+  },
+  {
+    "name": "wind_dir",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Wind direction from the source export."
+  },
+  {
+    "name": "u_star",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Friction velocity from the carbon-flux source table; internal eddy processing uses USTAR."
+  },
+  {
+    "name": "TKE",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Turbulent kinetic energy from the source export."
+  },
+  {
+    "name": "L",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Obukhov length from the source export."
+  },
+  {
+    "name": "z_minus_d_div_L",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Atmospheric stability ratio (z-d)/L from the source export."
+  },
+  {
+    "name": "bowen_ratio",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Bowen ratio from the source export."
+  },
+  {
+    "name": "x_peak",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint peak distance from the source export."
+  },
+  {
+    "name": "x_offset",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint offset distance from the source export."
+  },
+  {
+    "name": "x_10_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 10 percent cumulative contribution."
+  },
+  {
+    "name": "x_30_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 30 percent cumulative contribution."
+  },
+  {
+    "name": "x_50_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 50 percent cumulative contribution."
+  },
+  {
+    "name": "x_70_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 70 percent cumulative contribution."
+  },
+  {
+    "name": "x_90_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 90 percent cumulative contribution."
+  },
+  {
+    "name": "v_var",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Lateral wind variance from the source export."
+  },
+  {
+    "name": "site_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "site_id from the eddy source/export; preserved by miaproc when present."
+  }
 ]

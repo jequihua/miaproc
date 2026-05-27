@@ -1095,9 +1095,17 @@ class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
 
 
 class TestPrepareSilverStagePayloadCaseInsensitiveM31:
-    """M31: ``prepare_silver_stage_payload`` must inherit the
-    case-insensitive humidity policy because cloud silver writeback
-    failed with case-only-different ``RH`` + ``rH`` columns."""
+    """M31 was a case-insensitive collision band-aid for ``RH`` + ``rH``
+    in silver. M32 supersedes the band-aid: stage 1's internal
+    biomet ``rH`` is renamed to its source-truth final name
+    ``RH_1_1_1`` before the unique-column guard, so flux-side ``RH``
+    and biomet ``RH_1_1_1`` are case-insensitively distinct and both
+    survive. The legacy ``rH`` / ``rH_norm_s`` policy still applies
+    to the upstream-defect case where stage 1 itself emits duplicate
+    internal ``rH`` columns; that case is covered separately in
+    ``TestPrepareSilverStagePayload`` and via
+    :func:`ensure_unique_stage_columns` directly.
+    """
 
     @staticmethod
     def _silver_with_RH_and_rH(*, diverge: bool) -> pd.DataFrame:
@@ -1116,35 +1124,58 @@ class TestPrepareSilverStagePayloadCaseInsensitiveM31:
             }
         )
 
-    def test_equivalent_RH_rH_collapses_to_canonical_rH(self):
+    def test_equivalent_RH_and_rH_kept_separately_under_m32(self):
+        """M32: equivalent flux ``RH`` and biomet ``rH`` no longer
+        collide on the case-insensitive BigQuery field key because
+        biomet ``rH`` is renamed to its source-truth final name
+        ``RH_1_1_1``. Both series survive distinctly."""
         silver = self._silver_with_RH_and_rH(diverge=False)
         payload, actions = prepare_silver_stage_payload(
             silver, site_id="RBRL"
         )
         keys = [bigquery_field_key(c) for c in payload.columns]
         assert len(set(keys)) == len(keys), list(payload.columns)
-        assert "rH" in payload.columns
-        assert "RH" not in payload.columns
-        assert HUMIDITY_DERIVED_RENAME not in payload.columns
-        # Kept ``rH`` carries source values (60, 70, 80) — both
-        # variants were equivalent so the first wins.
-        assert list(payload["rH"]) == [60.0, 70.0, 80.0]
-        assert any(
-            a["action"] == "renamed_to_canonical_humidity" for a in actions
+        assert "RH" in payload.columns
+        assert "RH_1_1_1" in payload.columns
+        # Flux-side ``RH`` and biomet ``RH_1_1_1`` carry their
+        # respective source series even when the values happen to
+        # match in this fixture.
+        assert list(payload["RH"]) == [60.0, 70.0, 80.0]
+        assert list(payload["RH_1_1_1"]) == [60.0, 70.0, 80.0]
+        # No legacy humidity collision action fires because the
+        # case-insensitive collision no longer exists post-rename.
+        assert not any(
+            a["action"]
+            in (
+                "renamed_to_canonical_humidity",
+                "suppressed_equivalent_duplicate",
+            )
+            for a in actions
         )
+        # Backend-only inherited names are not present in the
+        # source-truth payload.
+        for backend in ("NEE", "QC_NEE", "Tair", "USTAR", "rH"):
+            assert backend not in payload.columns, backend
 
-    def test_divergent_RH_rH_preserves_both_as_rH_and_rH_norm_s(self):
+    def test_divergent_RH_and_rH_preserved_separately_under_m32(self):
+        """M32: divergent flux ``RH`` and biomet ``rH`` are
+        preserved as ``RH`` and ``RH_1_1_1`` respectively, carrying
+        their own values. The legacy ``rH``/``rH_norm_s`` workaround
+        no longer applies because the source-truth final names are
+        already case-insensitively distinct."""
         silver = self._silver_with_RH_and_rH(diverge=True)
         payload, actions = prepare_silver_stage_payload(
             silver, site_id="RBRL"
         )
         keys = [bigquery_field_key(c) for c in payload.columns]
         assert len(set(keys)) == len(keys), list(payload.columns)
-        assert "rH" in payload.columns
-        assert HUMIDITY_DERIVED_RENAME in payload.columns
-        assert "RH" not in payload.columns
-        assert list(payload["rH"]) == [60.0, 70.0, 80.0]
-        assert list(payload[HUMIDITY_DERIVED_RENAME]) == [55.0, 75.0, 85.0]
+        assert "RH" in payload.columns
+        assert "RH_1_1_1" in payload.columns
+        assert HUMIDITY_DERIVED_RENAME not in payload.columns
+        # Flux RH keeps flux values, biomet rH (now RH_1_1_1) keeps
+        # the divergent biomet values.
+        assert list(payload["RH"]) == [60.0, 70.0, 80.0]
+        assert list(payload["RH_1_1_1"]) == [55.0, 75.0, 85.0]
 
 
 class TestPrepareStageDataframeS2FiltOneMappingM31:
@@ -1230,9 +1261,23 @@ class TestPrepareSilverStagePayload:
         ]
         # Source values preserved.
         assert list(payload["bronze_only_flag"]) == [1, 0, 1]
-        # Silver columns still present.
-        for col in ("NEE", "USTAR", "Tair", "VPD", "Rg", "rH", "H", "LE"):
+        # M32: silver columns survive under their source-truth final
+        # names (``co2_flux``, ``u_star``, ``air_temperature_c``,
+        # ``VPD_hpa``, ``SWIN_1_1_1``, ``RH_1_1_1``, ``H``, ``LE``).
+        # Backend-only inherited names must not appear.
+        for col in (
+            "co2_flux",
+            "u_star",
+            "air_temperature_c",
+            "VPD_hpa",
+            "SWIN_1_1_1",
+            "RH_1_1_1",
+            "H",
+            "LE",
+        ):
             assert col in payload.columns, col
+        for backend in ("NEE", "USTAR", "Tair", "VPD", "Rg", "rH", "QC_NEE"):
+            assert backend not in payload.columns, backend
 
     def test_payload_columns_are_unique(self):
         silver = _silver_with_duplicate_rh()
@@ -1290,7 +1335,12 @@ class TestPrepareSilverStagePayload:
             )
 
     def test_missing_datetime_raises(self):
-        with pytest.raises(ValueError, match="missing the 'DateTime'"):
+        # M32A: the helper accepts either internal ``DateTime`` or
+        # source-truth ``timestamp``. The error must name both so
+        # the operator sees the realistic source-truth option.
+        with pytest.raises(
+            ValueError, match=r"missing both 'DateTime' and 'timestamp'"
+        ):
             prepare_silver_stage_payload(
                 pd.DataFrame({"x": [1]}), site_id="RBRL"
             )
@@ -1302,18 +1352,31 @@ class TestPrepareSilverStagePayload:
         pd.testing.assert_frame_equal(silver, before)
 
     def test_identity_triple_overwrite_recorded_in_actions(self):
+        # M32A: when the silver frame provides a pre-existing
+        # ``timestamp`` column, that column IS the source-truth
+        # time series the function uses to derive the new identity
+        # ``timestamp`` (so the replacement is a benign dtype
+        # normalization and is intentionally not audited). Stale
+        # ``site_id`` / ``primary_key`` overwrites still surface in
+        # the action list because they are not the time source.
         silver = _silver_with_bronze_sentinel()
         silver_with_ids = silver.copy()
         silver_with_ids["site_id"] = "STALE"
-        silver_with_ids["timestamp"] = "stale"
+        silver_with_ids["primary_key"] = "STALE_PK"
         payload, actions = prepare_silver_stage_payload(
             silver_with_ids, site_id="RBRL"
         )
         assert (payload["site_id"] == "RBRL").all()
-        # Both identity overwrites are recorded.
-        names = {a["column"] for a in actions if a["action"] == "identity_overwrite"}
+        names = {
+            a["column"] for a in actions
+            if a["action"] == "identity_overwrite"
+        }
         assert "site_id" in names
-        assert "timestamp" in names
+        assert "primary_key" in names
+        # ``timestamp`` is the M32A source-truth time column; using
+        # it for the synthesized identity is not an overwrite of a
+        # stale value.
+        assert "timestamp" not in names
 
 
 class TestPrepareStageDataframeM28Preservation:

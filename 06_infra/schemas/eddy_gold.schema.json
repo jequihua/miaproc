@@ -1,35 +1,398 @@
-﻿[
-  {"name":"primary_key","type":"STRING","mode":"REQUIRED","description":"Stage identity: <site_id>|<iso_utc_timestamp>."},
-  {"name":"site_id","type":"STRING","mode":"REQUIRED","description":"Per-row site/category identifier."},
-  {"name":"timestamp","type":"TIMESTAMP","mode":"REQUIRED","description":"UTC observation timestamp used with site_id as the MERGE key."},
-  {"name":"DateTime","type":"TIMESTAMP","mode":"REQUIRED","description":"Backend timestamp preserved from silver."},
-  {"name":"dateAndTime","type":"STRING","mode":"NULLABLE","description":"Formatted timestamp mirror for legacy _s2_filt_1 compatibility."},
-  {"name":"NEE","type":"FLOAT64","mode":"NULLABLE","description":"Pre-gap-fill net ecosystem exchange preserved from silver."},
-  {"name":"NEE_f","type":"FLOAT64","mode":"NULLABLE","description":"Gap-filled NEE from the selected eddy backend."},
-  {"name":"NEE_fqc","type":"INT64","mode":"NULLABLE","description":"Gap-filled NEE quality class."},
-  {"name":"GPP","type":"FLOAT64","mode":"NULLABLE","description":"Gross primary production from partitioning."},
-  {"name":"Reco","type":"FLOAT64","mode":"NULLABLE","description":"Ecosystem respiration from partitioning."},
-  {"name":"Tair","type":"FLOAT64","mode":"NULLABLE","description":"Air temperature preserved from silver."},
-  {"name":"Tair_f","type":"FLOAT64","mode":"NULLABLE","description":"Gap-filled air temperature."},
-  {"name":"Rg","type":"FLOAT64","mode":"NULLABLE","description":"Incoming shortwave radiation preserved from silver."},
-  {"name":"Rg_f","type":"FLOAT64","mode":"NULLABLE","description":"Gap-filled incoming shortwave radiation."},
-  {"name":"VPD","type":"FLOAT64","mode":"NULLABLE","description":"Vapor pressure deficit preserved from silver."},
-  {"name":"VPD_f","type":"FLOAT64","mode":"NULLABLE","description":"Gap-filled vapor pressure deficit."},
-  {"name":"USTAR","type":"FLOAT64","mode":"NULLABLE","description":"Friction velocity preserved from silver."},
-  {"name":"nee_f","type":"FLOAT64","mode":"NULLABLE","description":"Lowercase mirror of NEE_f for legacy _s2_filt_1 compatibility."},
-  {"name":"nee_fqc","type":"INT64","mode":"NULLABLE","description":"Lowercase mirror of NEE_fqc."},
-  {"name":"sw_in_f","type":"FLOAT64","mode":"NULLABLE","description":"Lowercase mirror of Rg_f."},
-  {"name":"ta_f","type":"FLOAT64","mode":"NULLABLE","description":"Lowercase mirror of Tair_f."},
-  {"name":"vpd_f","type":"FLOAT64","mode":"NULLABLE","description":"Lowercase mirror of VPD_f."},
-  {"name":"QC_NEE","type":"INT64","mode":"NULLABLE","description":"Silver QC column preserved into gold."},
-  {"name":"H","type":"FLOAT64","mode":"NULLABLE","description":"Silver sensible heat flux preserved into gold."},
-  {"name":"qc_H","type":"INT64","mode":"NULLABLE","description":"Silver QC class for H when present."},
-  {"name":"LE","type":"FLOAT64","mode":"NULLABLE","description":"Silver latent heat flux preserved into gold."},
-  {"name":"qc_LE","type":"INT64","mode":"NULLABLE","description":"Silver QC class for LE when present."},
-  {"name":"P_RAIN","type":"FLOAT64","mode":"NULLABLE","description":"Silver precipitation column preserved into gold."},
-  {"name":"rH","type":"FLOAT64","mode":"NULLABLE","description":"Canonical source relative humidity preserved into gold."},
-  {"name":"rH_norm_s","type":"FLOAT64","mode":"NULLABLE","description":"Derived/normalized silver humidity column preserved into gold when present."},
-  {"name":"filename","type":"STRING","mode":"NULLABLE","description":"Optional source pass-through when present."},
-  {"name":"DOY","type":"FLOAT64","mode":"NULLABLE","description":"Optional source pass-through when present."},
-  {"name":"daytime","type":"INT64","mode":"NULLABLE","description":"Optional source pass-through when present."}
+[
+  {
+    "name": "primary_key",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Source-side stable row identifier for deterministic provenance and writeback keys."
+  },
+  {
+    "name": "site_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Per-row site/category identifier preserved from the carbon-flux source table."
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Half-hour observation timestamp in UTC."
+  },
+  {
+    "name": "filename",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "EddyPro source filename associated with the half-hour record."
+  },
+  {
+    "name": "DOY",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro day-of-year value from the source export."
+  },
+  {
+    "name": "daytime",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "EddyPro daytime flag from the source export."
+  },
+  {
+    "name": "H",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Sensible heat flux from the carbon-flux source table."
+  },
+  {
+    "name": "qc_H",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for sensible heat flux H."
+  },
+  {
+    "name": "LE",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Latent heat flux from the carbon-flux source table."
+  },
+  {
+    "name": "qc_LE",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for latent heat flux LE."
+  },
+  {
+    "name": "co2_flux",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 flux from the carbon-flux source table; internal eddy processing uses NEE."
+  },
+  {
+    "name": "qc_co2_flux",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for co2_flux; internal eddy processing uses QC_NEE."
+  },
+  {
+    "name": "h2o_flux",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Water-vapor flux from the carbon-flux source table; pass-through provenance field."
+  },
+  {
+    "name": "qc_h2o_flux",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Quality-control flag for h2o_flux; pass-through provenance field."
+  },
+  {
+    "name": "H_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Storage correction term for sensible heat flux from the source export."
+  },
+  {
+    "name": "LE_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Storage correction term for latent heat flux from the source export."
+  },
+  {
+    "name": "co2_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 storage term from the source export."
+  },
+  {
+    "name": "h2o_strg",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O storage term from the source export."
+  },
+  {
+    "name": "co2_molar_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 molar density from the source export."
+  },
+  {
+    "name": "co2_mole_fraction",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 mole fraction from the source export."
+  },
+  {
+    "name": "co2_mixing_ratio",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "CO2 mixing ratio from the source export."
+  },
+  {
+    "name": "h2o_molar_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O molar density from the source export."
+  },
+  {
+    "name": "h2o_mole_fraction",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O mole fraction from the source export."
+  },
+  {
+    "name": "h2o_mixing_ratio",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "H2O mixing ratio from the source export."
+  },
+  {
+    "name": "sonic_temperature",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Sonic temperature from the source export."
+  },
+  {
+    "name": "air_temperature_c",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air temperature carried forward after miaproc conversion to degrees C; derived from source air_temperature."
+  },
+  {
+    "name": "air_pressure",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air pressure from the source export."
+  },
+  {
+    "name": "air_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air density from the source export."
+  },
+  {
+    "name": "air_heat_capacity",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air heat capacity from the source export."
+  },
+  {
+    "name": "air_molar_volume",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Air molar volume from the source export."
+  },
+  {
+    "name": "ET",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Evapotranspiration from the source export."
+  },
+  {
+    "name": "water_vapor_density",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Water-vapor density from the source export."
+  },
+  {
+    "name": "e",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Actual vapor pressure from the source export."
+  },
+  {
+    "name": "es",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Saturation vapor pressure from the source export."
+  },
+  {
+    "name": "specific_humidity",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Specific humidity from the source export."
+  },
+  {
+    "name": "RH",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Flux-side relative humidity from the carbon-flux source table; preserved separately from biomet RH_1_1_1."
+  },
+  {
+    "name": "VPD_hpa",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Vapor pressure deficit carried forward after miaproc conversion to hPa; derived from source VPD."
+  },
+  {
+    "name": "Tdew",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Dew-point temperature from the source export."
+  },
+  {
+    "name": "wind_speed",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Mean wind speed from the source export."
+  },
+  {
+    "name": "max_wind_speed",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Maximum wind speed from the source export."
+  },
+  {
+    "name": "wind_dir",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Wind direction from the source export."
+  },
+  {
+    "name": "u_star",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Friction velocity from the carbon-flux source table; internal eddy processing uses USTAR."
+  },
+  {
+    "name": "TKE",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Turbulent kinetic energy from the source export."
+  },
+  {
+    "name": "L",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Obukhov length from the source export."
+  },
+  {
+    "name": "z_minus_d_div_L",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Atmospheric stability ratio (z-d)/L from the source export."
+  },
+  {
+    "name": "bowen_ratio",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Bowen ratio from the source export."
+  },
+  {
+    "name": "x_peak",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint peak distance from the source export."
+  },
+  {
+    "name": "x_offset",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint offset distance from the source export."
+  },
+  {
+    "name": "x_10_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 10 percent cumulative contribution."
+  },
+  {
+    "name": "x_30_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 30 percent cumulative contribution."
+  },
+  {
+    "name": "x_50_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 50 percent cumulative contribution."
+  },
+  {
+    "name": "x_70_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 70 percent cumulative contribution."
+  },
+  {
+    "name": "x_90_pct",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Footprint distance containing 90 percent cumulative contribution."
+  },
+  {
+    "name": "v_var",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Lateral wind variance from the source export."
+  },
+  {
+    "name": "SWIN_1_1_1",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Biomet incoming shortwave radiation used as internal Rg for eddy processing."
+  },
+  {
+    "name": "P_RAIN_1_1_1",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Biomet precipitation used as internal P_RAIN for rain filtering."
+  },
+  {
+    "name": "RH_1_1_1",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Biomet relative humidity used as internal rH for eddy processing; distinct from flux-side RH."
+  },
+  {
+    "name": "rH_norm_s",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Defensive silver-stage fallback for a divergent derived/normalized humidity series if one appears."
+  },
+  {
+    "name": "dateAndTime",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Formatted timestamp mirror for legacy _s2_filt_1 compatibility (YYYY-MM-DD HH:MM:SS)."
+  },
+  {
+    "name": "nee_f",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Gap-filled NEE from the selected eddy backend."
+  },
+  {
+    "name": "nee_fqc",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Gap-filled NEE quality class from the selected eddy backend."
+  },
+  {
+    "name": "sw_in_f",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Gap-filled incoming shortwave radiation from the selected eddy backend."
+  },
+  {
+    "name": "ta_f",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Gap-filled air temperature from the selected eddy backend."
+  },
+  {
+    "name": "vpd_f",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Gap-filled vapor pressure deficit from the selected eddy backend."
+  },
+  {
+    "name": "GPP",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Gross primary production from flux partitioning."
+  },
+  {
+    "name": "Reco",
+    "type": "FLOAT64",
+    "mode": "NULLABLE",
+    "description": "Ecosystem respiration from flux partitioning."
+  }
 ]

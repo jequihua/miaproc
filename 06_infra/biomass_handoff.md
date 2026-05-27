@@ -1,10 +1,16 @@
 ﻿# Biomass Cloud Engineer Handoff
 
-Current as of M31. This is the only canonical biomass handoff in `06_infra/`.
+Current as of M33 (carried unchanged in scope from M31; M32/M32A are
+eddy-only). This is the only canonical biomass handoff in `06_infra/`.
 
 ## Goal
 
-Run the `miaproc biomass` pipeline from the forward-facing repository and deploy it using an image your cloud team builds and publishes. This handoff intentionally uses placeholders for Google Cloud bindings and resource names because the current pass does not push a Docker image or mutate cloud infrastructure.
+Run the `miaproc biomass` pipeline from the forward-facing repository and
+deploy it using an image your cloud team builds and publishes. This handoff
+intentionally uses placeholders for Google Cloud bindings and resource names
+because this repository update does not push a Docker image or mutate cloud
+infrastructure. M33 only updates eddy-side deployment artifacts; biomass
+behavior is unchanged.
 
 ## Repository And Docker
 
@@ -52,7 +58,10 @@ FINAL_TABLE=<biomass-final-table>
 
 ## IAM Bindings To Confirm
 
-These are the Google Cloud IAM bindings your team should confirm or create. Exact role scope is your cloud team's call; prefer the narrowest dataset/repository/job scope that works.
+These are the Google Cloud **IAM bindings** (role grants binding a member,
+commonly a service account, to a Google Cloud resource) your team should
+confirm or create. Exact role scope is your cloud team's call; prefer the
+narrowest dataset/repository/job scope that works.
 
 ```text
 <BIOMASS_SERVICE_ACCOUNT> -> Artifact Registry reader on <ARTIFACT_REPOSITORY>
@@ -62,8 +71,6 @@ These are the Google Cloud IAM bindings your team should confirm or create. Exac
 <DEPLOYER_PRINCIPAL> -> Cloud Run developer/admin role for the target job
 <DEPLOYER_PRINCIPAL> -> iam.serviceAccountUser on <BIOMASS_SERVICE_ACCOUNT>
 ```
-
-The phrase you were trying to remember is usually **IAM bindings**: role grants binding a member, often a service account, to a Google Cloud resource.
 
 ## BigQuery Write Safety
 

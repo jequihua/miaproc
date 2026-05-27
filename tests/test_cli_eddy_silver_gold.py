@@ -241,12 +241,30 @@ class TestSilverStage:
         assert run_path.exists()
 
         df = pd.read_csv(silver_path)
-        # Silver carries the joined input + stage-1 columns.
-        for col in ("DateTime", "NEE", "USTAR", "Tair", "Rg", "QC_NEE"):
+        # M32 / M32A: silver carries source-truth final names for the
+        # inherited carbon-flux / biomet variables, with the time
+        # column renamed from internal ``DateTime`` to source-truth
+        # ``timestamp`` per the lineage CSV.
+        for col in (
+            "timestamp",
+            "co2_flux",
+            "u_star",
+            "air_temperature_c",
+            "SWIN_1_1_1",
+            "qc_co2_flux",
+        ):
             assert col in df.columns, col
-        # Silver-only extras (joined but not produced by the gold backend).
-        for col in ("H", "LE", "P_RAIN", "rH"):
+        # Silver-only extras (joined but not produced by the gold
+        # backend) also follow the source-truth contract: ``P_RAIN``
+        # / ``rH`` become ``P_RAIN_1_1_1`` / ``RH_1_1_1``.
+        for col in ("H", "LE", "P_RAIN_1_1_1", "RH_1_1_1"):
             assert col in df.columns, col
+        # Backend-only inherited names (including internal
+        # ``DateTime``) are gone under M32 / M32A.
+        for backend in (
+            "DateTime", "NEE", "USTAR", "Tair", "Rg", "QC_NEE", "rH",
+        ):
+            assert backend not in df.columns, backend
 
         run = json.loads(run_path.read_text(encoding="utf-8"))
         assert run["stage"] == "silver"
@@ -272,9 +290,13 @@ class TestSilverStage:
         assert rc == cli.SUCCESS_EXIT
         assert out.exists()
         df = pd.read_parquet(out)
-        assert "DateTime" in df.columns
-        # Parquet preserves tz-aware DateTime by design.
-        assert pd.api.types.is_datetime64_any_dtype(df["DateTime"])
+        # M32A: the silver parquet uses source-truth ``timestamp``
+        # (the lineage CSV's final time-column name); ``DateTime``
+        # is an internal processing column and must not survive.
+        assert "timestamp" in df.columns
+        assert "DateTime" not in df.columns
+        # Parquet preserves tz-aware timestamps by design.
+        assert pd.api.types.is_datetime64_any_dtype(df["timestamp"])
 
     def test_silver_unsupported_extension_exits_three(
         self, tmp_path, patch_load_stage1
@@ -652,9 +674,11 @@ class TestSilverGoldRoundtrip:
         )
         assert rc2 == cli.SUCCESS_EXIT
 
-        # Gold preserves silver-only columns even after CSV tz round-trip.
+        # Gold preserves silver-only columns even after CSV tz
+        # round-trip. M32: silver carries source-truth final names
+        # (``P_RAIN_1_1_1``, ``RH_1_1_1``) and gold attaches them.
         gold_df = pd.read_csv(tmp_path / "gold.csv")
-        for col in ("H", "LE", "P_RAIN", "rH"):
+        for col in ("H", "LE", "P_RAIN_1_1_1", "RH_1_1_1"):
             assert col in gold_df.columns, col
         for col in ("GPP", "Reco", "NEE_f"):
             assert col in gold_df.columns, col

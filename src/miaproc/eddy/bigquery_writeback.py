@@ -70,6 +70,8 @@ __all__ = [
     "validate_source_columns_unique",
     "bigquery_field_key",
     "read_final_table_columns",
+    "apply_silver_source_truth_rename",
+    "silver_to_internal_calc_frame",
     "S2_FILT_1_RENAME_MAP",
     "GROUPED_RUN_ROW_SITE_LABEL",
     "HUMIDITY_SOURCE_COLUMN",
@@ -1118,6 +1120,129 @@ def ensure_unique_stage_columns(
     return new_data, actions
 
 
+def _rename_unique_columns(
+    df: pd.DataFrame, rename_map: dict[str, str]
+) -> pd.DataFrame:
+    """Return ``df`` with every column whose name is a unique key in
+    ``rename_map`` renamed to its mapped value.
+
+    A column is renamed only when its internal name appears exactly
+    once in the frame. If upstream produced duplicates of an internal
+    name (e.g. two literal ``rH`` columns from a malformed silver
+    construction), those duplicates are left untouched so the
+    existing :func:`ensure_unique_stage_columns` humidity policy can
+    resolve them deterministically (``rH`` + ``rH_norm_s``) rather
+    than collapsing into a literal-duplicate source-truth name and
+    losing the second series silently.
+
+    The caller's frame is not mutated.
+    """
+    cols = list(df.columns)
+    if not cols:
+        return df
+    counts: dict[str, int] = {}
+    for c in cols:
+        counts[c] = counts.get(c, 0) + 1
+    new_cols = list(cols)
+    changed = False
+    for i, c in enumerate(cols):
+        if c in rename_map and counts[c] == 1:
+            new_cols[i] = rename_map[c]
+            changed = True
+    if not changed:
+        return df
+    out = df.copy()
+    out.columns = new_cols
+    return out
+
+
+def apply_silver_source_truth_rename(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Rename internal eddy column names to their M32 / M32A source-
+    truth final names.
+
+    Maps the backend/canonical names used by stage 1 (``DateTime``,
+    ``NEE``, ``QC_NEE``, ``Tair``, ``USTAR``, ``VPD``, ``Rg``,
+    ``P_RAIN``, ``rH``) to the inherited final names exposed in
+    silver / gold payloads (``timestamp``, ``co2_flux``,
+    ``qc_co2_flux``, ``air_temperature_c``, ``u_star``, ``VPD_hpa``,
+    ``SWIN_1_1_1``, ``P_RAIN_1_1_1``, ``RH_1_1_1``). Columns not in
+    :data:`~miaproc.eddy.constants.SILVER_INTERNAL_TO_FINAL_RENAME`
+    are returned unchanged, so passing an already-source-truth frame
+    is a no-op. The caller's frame is not mutated.
+
+    When an internal name appears more than once in ``df`` (an
+    upstream defect — stage 1 emits at most one of each internal
+    column), the rename is skipped for that name so the existing
+    :func:`ensure_unique_stage_columns` humidity policy can still
+    resolve the M28 ``rH`` / ``rH_norm_s`` fallback.
+
+    M32A: if both internal ``DateTime`` and source-truth
+    ``timestamp`` are present, the internal ``DateTime`` is dropped
+    so the rename does not synthesize a duplicate ``timestamp``
+    field. The source-truth ``timestamp`` value wins at the silver
+    output boundary by contract; internal ``DateTime`` is recomputed
+    on the gold side via :func:`silver_to_internal_calc_frame`.
+    """
+    from .constants import SILVER_INTERNAL_TO_FINAL_RENAME
+
+    out = df
+    # M32A: drop the internal ``DateTime`` when the source-truth
+    # ``timestamp`` is already attached to the frame so the rename
+    # cannot create a literal-duplicate ``timestamp`` column.
+    if (
+        out is not None
+        and "DateTime" in out.columns
+        and "timestamp" in out.columns
+    ):
+        out = out.drop(columns=["DateTime"])
+    return _rename_unique_columns(out, SILVER_INTERNAL_TO_FINAL_RENAME)
+
+
+def silver_to_internal_calc_frame(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Map a source-truth silver frame back to the internal eddy
+    backend names so :func:`postproc` / :func:`prepare_reddyproc_input`
+    can run unchanged.
+
+    Used by the gold CLI after reading a source-truth silver table
+    (``timestamp``, ``co2_flux``, ``qc_co2_flux``,
+    ``air_temperature_c``, ...) to rebuild the calculation frame
+    (``DateTime``, ``NEE``, ``QC_NEE``, ``Tair``, ...) the
+    hesseflux / REddyProc backends expect. Columns absent from
+    :data:`~miaproc.eddy.constants.FINAL_TO_INTERNAL_RENAME` are
+    returned unchanged. The caller's frame is not mutated.
+
+    Like :func:`apply_silver_source_truth_rename`, only unique
+    source-truth column names are renamed so a hypothetical upstream
+    duplicate is preserved rather than fused.
+
+    M32A: if both source-truth ``timestamp`` and a leaked internal
+    ``DateTime`` are present in the same frame (upstream defect or a
+    legacy non-source-truth silver table), the leaked ``DateTime``
+    is dropped so the source-truth ``timestamp`` value wins on the
+    rename. The BigQuery silver table the gold CLI reads back under
+    the M32A contract will only carry ``timestamp``, so the
+    source-truth value is the authoritative one to feed into the
+    backend.
+    """
+    from .constants import FINAL_TO_INTERNAL_RENAME
+
+    out = df
+    # M32A: prefer the source-truth ``timestamp`` over any leaked
+    # internal ``DateTime`` so the reconstructed calc frame carries
+    # the source-truth time series.
+    if (
+        out is not None
+        and "timestamp" in out.columns
+        and "DateTime" in out.columns
+    ):
+        out = out.drop(columns=["DateTime"])
+    return _rename_unique_columns(out, FINAL_TO_INTERNAL_RENAME)
+
+
 def prepare_silver_stage_payload(
     silver_df: pd.DataFrame,
     *,
@@ -1154,28 +1279,73 @@ def prepare_silver_stage_payload(
     are taken from ``silver_df`` because stage-1 has already done the
     bronze-preserving join.
     """
-    if "DateTime" not in silver_df.columns:
+    # M32A: accept either the internal ``DateTime`` column (stage 1
+    # output, before the source-truth rename) or the source-truth
+    # ``timestamp`` column (silver frame that has already passed
+    # through :func:`apply_silver_source_truth_rename`, or a silver
+    # table read back from BigQuery under the M32A contract). Prefer
+    # ``timestamp`` if both are present so the source-truth value
+    # wins at the silver output boundary.
+    if "timestamp" in silver_df.columns:
+        ts_source_col = "timestamp"
+    elif "DateTime" in silver_df.columns:
+        ts_source_col = "DateTime"
+    else:
         raise ValueError(
-            "prepare_silver_stage_payload: silver frame missing the "
-            "'DateTime' column required for stage-identity derivation."
+            "prepare_silver_stage_payload: silver frame missing both "
+            "'DateTime' and 'timestamp' columns required for stage-"
+            "identity derivation."
         )
     validate_source_columns_unique(source_flux_df, side="bronze flux source")
 
     out = silver_df.copy()
-    dt = pd.to_datetime(out["DateTime"], utc=True, errors="coerce")
+    dt = pd.to_datetime(out[ts_source_col], utc=True, errors="coerce")
     iso = dt.dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+    # M32A: drop the legacy internal ``DateTime`` column at the silver
+    # output boundary. The source-truth payload exposes only
+    # ``timestamp`` per the lineage CSV; the canonical ``timestamp``
+    # is reinjected from ``dt`` below.
+    if "DateTime" in out.columns:
+        out = out.drop(columns=["DateTime"])
 
     # Identity-triple assignment via DataFrame insertion would create
     # a duplicate when the silver frame already carries one of those
     # names; we resolve it explicitly to avoid silently overwriting a
     # source-side column with a synthesized value.
+    #
+    # M32A: when the silver frame provided ``timestamp`` as the
+    # time source (``ts_source_col == "timestamp"``), the synthesized
+    # ``timestamp`` is derived from that exact column. Re-injecting
+    # it is not a substitution and should not surface as an
+    # ``identity_overwrite`` action — the audit signal is reserved
+    # for the case where the caller supplied a *stale* identity
+    # column we replaced.
     identity_cols = ("primary_key", "site_id", "timestamp")
     pre_existing = [c for c in identity_cols if c in out.columns]
+    if ts_source_col == "timestamp" and "timestamp" in pre_existing:
+        pre_existing = [c for c in pre_existing if c != "timestamp"]
+    if "timestamp" in out.columns:
+        out = out.drop(columns=["timestamp"])
     if pre_existing:
         # Drop pre-existing identity columns so the freshly synthesized
         # values are the only ones present. Record this in actions so
         # the CLI run-metadata makes the substitution visible.
         out = out.drop(columns=pre_existing)
+
+    # M32: rename internal eddy aliases (NEE, USTAR, Tair, VPD, Rg,
+    # P_RAIN, rH, QC_NEE) to source-truth final names (co2_flux,
+    # u_star, air_temperature_c, VPD_hpa, SWIN_1_1_1, P_RAIN_1_1_1,
+    # RH_1_1_1, qc_co2_flux). Applied here, before the unique-column
+    # guard, so a preserved flux-side ``RH`` and the renamed biomet
+    # ``rH`` -> ``RH_1_1_1`` no longer collide on the case-insensitive
+    # BigQuery field key. A no-op when the silver frame already
+    # carries source-truth names. Under M32A the rename map also
+    # includes ``DateTime -> timestamp``, but ``DateTime`` is dropped
+    # above so the rename never synthesizes a literal-duplicate
+    # ``timestamp``.
+    out = apply_silver_source_truth_rename(out)
+
     out["timestamp"] = dt
     out["site_id"] = site_id
     out["primary_key"] = site_id + "|" + iso
@@ -1366,6 +1536,27 @@ def prepare_stage_dataframe(
     # the M7-normalized float64).
     if target_types is not None:
         out = _cast_to_target_types(out, target_types)
+
+    # M32: drop redundant internal-name passthroughs in the gold
+    # stage payload whenever the corresponding source-truth final
+    # column is also present. The hesseflux/REddyProc backends emit
+    # raw NEE/Tair/USTAR/VPD/Rg passthroughs alongside the genuinely
+    # new gap-filled outputs (NEE_f, Tair_f, ...); under the M32
+    # contract those passthroughs duplicate the source-truth silver
+    # columns (co2_flux, air_temperature_c, u_star, VPD_hpa,
+    # SWIN_1_1_1) that ``_attach_silver_columns_to_gold`` carries
+    # forward. We keep the new processing outputs and drop only the
+    # redundant passthroughs to avoid ambiguous backend-vs-source-truth
+    # semantics in the staged payload.
+    from .constants import SILVER_INTERNAL_TO_FINAL_RENAME
+
+    cols_to_drop = [
+        internal
+        for internal, final in SILVER_INTERNAL_TO_FINAL_RENAME.items()
+        if internal in out.columns and final in out.columns
+    ]
+    if cols_to_drop:
+        out = out.drop(columns=cols_to_drop)
 
     # Order: identity first, then everything else in stable alphabetical order.
     rest = sorted(c for c in out.columns if c not in identity)

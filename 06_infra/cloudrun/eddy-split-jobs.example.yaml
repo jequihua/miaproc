@@ -1,4 +1,11 @@
-﻿# Eddy silver dry-run. Reads BigQuery and writes local payload artifacts only.
+﻿# Eddy silver dry-run (recommended first validation mode). Reads BigQuery and
+# writes local M32A source-truth payload artifacts only (stage_payload.csv +
+# stage_payload_metadata.json). No BigQuery write, validation SQL, MERGE, or
+# watermark advancement. The dry-run `columns` should carry source-truth names
+# (timestamp, co2_flux, qc_co2_flux, air_temperature_c, u_star, VPD_hpa,
+# SWIN_1_1_1, P_RAIN_1_1_1, RH_1_1_1, and flux-side RH when present) and no
+# internal-name passthroughs (DateTime, NEE, QC_NEE, Tair, USTAR, VPD, Rg,
+# P_RAIN, rH).
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
@@ -47,7 +54,9 @@ spec:
                 cpu: "2"
                 memory: 4Gi
 ---
-# Eddy silver writeback. Mutates the silver stage/control tables.
+# Eddy silver writeback. Mutates the silver stage/control tables. Run only
+# after the dry-run job above has been accepted. Produces an M32A source-truth
+# silver payload (single `timestamp`, no `DateTime`).
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
@@ -95,7 +104,14 @@ spec:
                 cpu: "2"
                 memory: 4Gi
 ---
-# Eddy gold dry-run. Reads silver, runs the selected engine, and writes local payload artifacts only.
+# Eddy gold dry-run (recommended first validation mode). Reads an M32A
+# source-truth silver table, reconstructs internal DateTime from `timestamp`
+# to drive the selected backend, and writes local M32A source-truth payload
+# artifacts only. No BigQuery write, validation SQL, MERGE, or watermark
+# advancement. The dry-run `columns` should carry source-truth silver columns
+# preserved into gold plus gold-only outputs (nee_f, nee_fqc, sw_in_f, ta_f,
+# vpd_f, GPP, Reco, dateAndTime) and a single `timestamp` (no internal
+# `DateTime`).
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
@@ -148,7 +164,9 @@ spec:
                 cpu: "2"
                 memory: 8Gi
 ---
-# Eddy gold stage-only writeback. Mutates gold stage/control tables, but does not MERGE final.
+# Eddy gold stage-only writeback. Mutates gold stage/control tables, but does
+# not MERGE final. Run only after the gold dry-run job above has been
+# accepted. Produces an M32A source-truth gold stage payload.
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
@@ -198,7 +216,9 @@ spec:
                 cpu: "2"
                 memory: 8Gi
 ---
-# Eddy gold explicit merge. Mutates gold stage/control/final tables.
+# Eddy gold explicit merge. Mutates gold stage/control/final tables. Run only
+# after the gold stage-only writeback has been accepted. Produces an M32A
+# source-truth gold final payload (single `timestamp`, no `DateTime`).
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:

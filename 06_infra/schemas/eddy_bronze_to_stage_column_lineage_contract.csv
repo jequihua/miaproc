@@ -1,0 +1,69 @@
+tbl_origin,v_name_bronze,v_name_eddyproc,v_name_final,description
+bronze_carbon_flux,primary_key,,primary_key,Carbon-flux source column primary_key; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,timestamp,DateTime,timestamp,Carbon-flux source column timestamp; used by eddy processing as DateTime and carried to silver/gold as timestamp.
+bronze_carbon_flux,filename,,filename,Carbon-flux source column filename; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,DOY,,DOY,Carbon-flux source column DOY; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,daytime,,daytime,Carbon-flux source column daytime; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,H,H,H,Carbon-flux source column H; used by eddy processing as H and carried to silver/gold as H.
+bronze_carbon_flux,qc_H,qc_H,qc_H,Carbon-flux source column qc_H; used by eddy processing as qc_H and carried to silver/gold as qc_H.
+bronze_carbon_flux,LE,LE,LE,Carbon-flux source column LE; used by eddy processing as LE and carried to silver/gold as LE.
+bronze_carbon_flux,qc_LE,qc_LE,qc_LE,Carbon-flux source column qc_LE; used by eddy processing as qc_LE and carried to silver/gold as qc_LE.
+bronze_carbon_flux,co2_flux,NEE,co2_flux,Carbon-flux source column co2_flux; used by eddy processing as NEE and carried to silver/gold as co2_flux.
+bronze_carbon_flux,qc_co2_flux,QC_NEE,qc_co2_flux,Carbon-flux source column qc_co2_flux; used by eddy processing as QC_NEE and carried to silver/gold as qc_co2_flux.
+bronze_carbon_flux,h2o_flux,,h2o_flux,Carbon-flux source column h2o_flux; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,qc_h2o_flux,,qc_h2o_flux,Carbon-flux source column qc_h2o_flux; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,H_strg,,H_strg,Carbon-flux source column H_strg; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,LE_strg,,LE_strg,Carbon-flux source column LE_strg; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,co2_strg,,co2_strg,Carbon-flux source column co2_strg; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,h2o_strg,,h2o_strg,Carbon-flux source column h2o_strg; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,co2_molar_density,,co2_molar_density,Carbon-flux source column co2_molar_density; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,co2_mole_fraction,,co2_mole_fraction,Carbon-flux source column co2_mole_fraction; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,co2_mixing_ratio,,co2_mixing_ratio,Carbon-flux source column co2_mixing_ratio; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,h2o_molar_density,,h2o_molar_density,Carbon-flux source column h2o_molar_density; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,h2o_mole_fraction,,h2o_mole_fraction,Carbon-flux source column h2o_mole_fraction; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,h2o_mixing_ratio,,h2o_mixing_ratio,Carbon-flux source column h2o_mixing_ratio; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,sonic_temperature,,sonic_temperature,Carbon-flux source column sonic_temperature; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,air_temperature,Tair,air_temperature_c,Carbon-flux source column air_temperature; used by eddy processing as Tair and carried to silver/gold as air_temperature_c to record the transformed unit.
+bronze_carbon_flux,air_pressure,,air_pressure,Carbon-flux source column air_pressure; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,air_density,,air_density,Carbon-flux source column air_density; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,air_heat_capacity,,air_heat_capacity,Carbon-flux source column air_heat_capacity; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,air_molar_volume,,air_molar_volume,Carbon-flux source column air_molar_volume; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,ET,,ET,Carbon-flux source column ET; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,water_vapor_density,,water_vapor_density,Carbon-flux source column water_vapor_density; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,e,,e,Carbon-flux source column e; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,es,,es,Carbon-flux source column es; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,specific_humidity,,specific_humidity,Carbon-flux source column specific_humidity; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,RH,,RH,Carbon-flux source column RH; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,VPD,VPD,VPD_hpa,Carbon-flux source column VPD; used by eddy processing as VPD and carried to silver/gold as VPD_hpa to record the transformed unit.
+bronze_carbon_flux,Tdew,,Tdew,Carbon-flux source column Tdew; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,wind_speed,,wind_speed,Carbon-flux source column wind_speed; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,max_wind_speed,,max_wind_speed,Carbon-flux source column max_wind_speed; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,wind_dir,,wind_dir,Carbon-flux source column wind_dir; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,u_star,USTAR,u_star,Carbon-flux source column u_star; used by eddy processing as USTAR and carried to silver/gold as u_star.
+bronze_carbon_flux,TKE,,TKE,Carbon-flux source column TKE; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,L,,L,Carbon-flux source column L; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,z_minus_d_div_L,,z_minus_d_div_L,Carbon-flux source column z_minus_d_div_L; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,bowen_ratio,,bowen_ratio,Carbon-flux source column bowen_ratio; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_peak,,x_peak,Carbon-flux source column x_peak; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_offset,,x_offset,Carbon-flux source column x_offset; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_10_pct,,x_10_pct,Carbon-flux source column x_10_pct; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_30_pct,,x_30_pct,Carbon-flux source column x_30_pct; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_50_pct,,x_50_pct,Carbon-flux source column x_50_pct; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_70_pct,,x_70_pct,Carbon-flux source column x_70_pct; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,x_90_pct,,x_90_pct,Carbon-flux source column x_90_pct; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,v_var,,v_var,Carbon-flux source column v_var; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_carbon_flux,site_id,,site_id,Carbon-flux source column site_id; pass-through provenance/meteorological field carried unchanged to silver and gold.
+bronze_biomet,timestamp,DateTime,timestamp,Biomet timestamp used to align biomet measurements to carbon-flux rows; final payload uses the shared carbon-flux timestamp.
+bronze_biomet,site_id,,site_id,Biomet site/group identifier used for grouped processing when present; final payload uses the shared site_id.
+bronze_biomet,SWIN_1_1_1,Rg,SWIN_1_1_1,Biomet incoming shortwave radiation used by eddy processing as Rg and carried to silver/gold under the source name.
+bronze_biomet,P_RAIN_1_1_1,P_RAIN,P_RAIN_1_1_1,Biomet precipitation used by rain filtering as P_RAIN and carried to silver/gold under the source name.
+bronze_biomet,RH_1_1_1,rH,RH_1_1_1,Biomet relative humidity used by eddy processing as rH and carried to silver/gold under the source name; distinct from flux-side RH.
+silver_derived,,,rH_norm_s,Optional defensive silver-stage humidity fallback when a divergent normalized humidity series appears.
+gold_derived,,,dateAndTime,Formatted timestamp mirror for legacy _s2_filt_1 compatibility (YYYY-MM-DD HH:MM:SS).
+gold_derived,,,nee_f,Gap-filled NEE from the selected eddy backend.
+gold_derived,,,nee_fqc,Gap-filled NEE quality class from the selected eddy backend.
+gold_derived,,,sw_in_f,Gap-filled incoming shortwave radiation from the selected eddy backend.
+gold_derived,,,ta_f,Gap-filled air temperature from the selected eddy backend.
+gold_derived,,,vpd_f,Gap-filled vapor pressure deficit from the selected eddy backend.
+gold_derived,,,GPP,Gross primary production from flux partitioning.
+gold_derived,,,Reco,Ecosystem respiration from flux partitioning.

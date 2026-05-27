@@ -2497,44 +2497,40 @@ def _unique_source_columns(df: Any) -> list[str]:
 
 
 def _stage1_alias_map() -> dict[str, str]:
-    """Return the raw-bronze -> canonical-silver column alias map (M31).
+    """Return the raw-bronze -> source-truth-silver column alias map (M32).
 
-    Stage 1 renames bronze/source flux + biomet columns into their
-    canonical silver names before merging (see
-    ``miaproc.eddy.core.stage1_from_raw_frames`` and
-    ``miaproc.eddy.constants``). The dry-run preservation check
-    compares bronze input column names against the silver payload, so
-    it must know about these aliases to avoid false-positive
-    ``missing_input_columns`` reports.
+    Stage 1 still uses backend/canonical names internally (``NEE``,
+    ``Tair``, ``USTAR``, ``QC_NEE``, ``Rg``, ``P_RAIN``, ``rH``), but
+    the M32 silver payload contract renames those to source-truth
+    final names (``co2_flux``, ``air_temperature_c``, ``u_star``,
+    ``qc_co2_flux``, ``SWIN_1_1_1``, ``P_RAIN_1_1_1``, ``RH_1_1_1``)
+    before any writeback. Only the unit-transformed inherited
+    variables and the legacy ``u.`` legacy flux name require an
+    explicit alias under the M32 contract; the rest survive into the
+    silver payload under their bronze names and are detected by exact
+    match.
 
-    Composed from:
-
-    - ``FULL_OUTPUT_RENAME_MAP``: flux-side EddyPro raw -> canonical
-      (``co2_flux -> NEE``, ``qc_co2_flux -> QC_NEE``,
-      ``air_temperature -> Tair``, ``u. -> USTAR``);
-    - ``BIOMET_OUT_RENAME``: biomet keyed columns -> canonical
-      (``SWIN_1_1_1 -> Rg``, ``P_RAIN_1_1_1 -> P_RAIN``,
-      ``RH_1_1_1 -> rH``);
-    - chained ``u_star -> u. -> USTAR`` from
-      ``miaproc.eddy.core._resolve_ustar_alias``.
-
-    Returned as a fresh dict so callers can mutate it locally
-    without poisoning the package state.
+    Returned as a fresh dict so callers can mutate it locally without
+    poisoning the package state.
     """
-    from miaproc.eddy.constants import (
-        BIOMET_OUT_RENAME,
-        FULL_OUTPUT_RENAME_MAP,
-    )
+    from miaproc.eddy.constants import SILVER_BRONZE_TO_FINAL_ALIASES
 
-    aliases: dict[str, str] = {}
-    aliases.update(FULL_OUTPUT_RENAME_MAP)
-    aliases.update(BIOMET_OUT_RENAME)
-    if "u." in FULL_OUTPUT_RENAME_MAP:
-        aliases["u_star"] = FULL_OUTPUT_RENAME_MAP["u."]
-    return aliases
+    return dict(SILVER_BRONZE_TO_FINAL_ALIASES)
 
 
 SILVER_STAGE1_INPUT_ALIASES: dict[str, str] = _stage1_alias_map()
+
+
+# M32A: alias map used by the gold-side dry-run preservation check.
+# The gold path runs ``prepare_stage_dataframe`` which (under the M32
+# redundant-passthrough rule) drops the internal ``DateTime`` column
+# in favor of the source-truth ``timestamp``. When the silver input
+# still carries ``DateTime`` (legacy fixtures or pre-M32A silver
+# tables), this alias map lets the dry-run check resolve it to
+# ``timestamp`` instead of reporting a spurious missing column.
+# Pure-source-truth silver inputs (``timestamp`` only) match by
+# exact name and do not need an alias entry.
+GOLD_SILVER_INPUT_ALIASES: dict[str, str] = {"DateTime": "timestamp"}
 
 
 def _build_stage_payload_dry_run_metadata(
@@ -2860,18 +2856,23 @@ def _write_run_json_bigquery(
 def _read_silver_table(path: Path) -> Any:
     """Read a silver-stage table from CSV or parquet for gold consumption.
 
-    Normalizes ``DateTime`` to a tz-aware ``datetime64[ns, UTC]`` column
-    when present, since CSV roundtrips lose timezone metadata.
+    M32A: silver outputs under the source-truth contract carry
+    ``timestamp`` (no internal ``DateTime``). CSV round-trips lose
+    timezone metadata, so the helper parses whichever of
+    ``timestamp`` / ``DateTime`` is present back to a tz-aware
+    ``datetime64[ns, UTC]`` column. Legacy silver files that still
+    carry ``DateTime`` continue to work.
     """
     import pandas as pd
 
     suffix = path.suffix.lower()
     if suffix == ".csv":
         df = pd.read_csv(path)
-        if "DateTime" in df.columns:
-            df["DateTime"] = pd.to_datetime(
-                df["DateTime"], utc=True, errors="coerce"
-            )
+        for col in ("timestamp", "DateTime"):
+            if col in df.columns:
+                df[col] = pd.to_datetime(
+                    df[col], utc=True, errors="coerce"
+                )
         return df
     if suffix in (".parquet", ".pq"):
         return pd.read_parquet(path)
@@ -2887,21 +2888,49 @@ def _attach_silver_columns_to_gold(
 
     Gold's accepted backend output (the 13-column contract from
     ``backend_contract.md``) is preserved verbatim — no renames, no
-    drops. Silver columns that the backend did not already produce are
-    appended after the gold columns. ``df.attrs`` is preserved across
-    the merge so backend diagnostics survive.
+    drops. Silver columns that the backend did not already produce
+    are appended after the gold columns. ``df.attrs`` is preserved
+    across the merge so backend diagnostics survive.
 
-    Returns ``(merged_df, silver_only_columns_appended)``. Falls back
-    to ``(gold_df, [])`` if either frame lacks ``DateTime`` so a
+    M32A: silver may carry the source-truth ``timestamp`` column
+    instead of the internal ``DateTime``. When that is the case, the
+    helper synthesizes a temporary ``DateTime`` on the silver side
+    from ``timestamp`` so the merge still keys on the canonical
+    backend-side ``DateTime``. The silver-side ``timestamp`` survives
+    as a normal silver-extra (it is not present in ``gold_df``), so
+    the merged gold frame ends up carrying both the backend-side
+    ``DateTime`` and the source-truth ``timestamp``; the M32
+    redundant-passthrough rule inside
+    :func:`miaproc.eddy.bigquery_writeback.prepare_stage_dataframe`
+    drops the internal ``DateTime`` from the staged payload.
+
+    Returns ``(merged_df, silver_only_columns_appended)``. Falls
+    back to ``(gold_df, [])`` if neither ``DateTime`` nor
+    ``timestamp`` can be coalesced into a shared join key, so a
     malformed silver table still produces a gold output.
     """
-    if "DateTime" not in silver_df.columns or "DateTime" not in gold_df.columns:
+    import pandas as pd
+
+    if "DateTime" not in gold_df.columns:
         return gold_df, []
-    silver_extras = [c for c in silver_df.columns if c not in gold_df.columns]
+    if "DateTime" in silver_df.columns:
+        silver_for_merge = silver_df
+    elif "timestamp" in silver_df.columns:
+        silver_for_merge = silver_df.copy()
+        silver_for_merge["DateTime"] = pd.to_datetime(
+            silver_df["timestamp"], utc=True, errors="coerce"
+        )
+    else:
+        return gold_df, []
+    silver_extras = [
+        c
+        for c in silver_for_merge.columns
+        if c not in gold_df.columns and c != "DateTime"
+    ]
     if not silver_extras:
         return gold_df, []
     saved_attrs = dict(getattr(gold_df, "attrs", {}) or {})
-    extras_df = silver_df[["DateTime"] + silver_extras]
+    extras_df = silver_for_merge[["DateTime"] + silver_extras]
     merged = gold_df.merge(extras_df, on="DateTime", how="left")
     merged.attrs = saved_attrs
     return merged, silver_extras
@@ -2936,6 +2965,7 @@ def _run_eddy_silver_command(args: argparse.Namespace) -> int:
 
     try:
         from miaproc.eddy import (
+            apply_silver_source_truth_rename,
             load_stage1,
             read_and_combine_csv,
             stage1_from_raw_frames,
@@ -2957,6 +2987,7 @@ def _run_eddy_silver_command(args: argparse.Namespace) -> int:
                 site_id=None,
                 drop_rain_rows=False,
             )
+            silver = apply_silver_source_truth_rename(silver)
             silver_frames.append(silver)
         else:
             logger.info(
@@ -3003,6 +3034,7 @@ def _run_eddy_silver_command(args: argparse.Namespace) -> int:
                     site_id=None,
                     drop_rain_rows=False,
                 )
+                silver_group = apply_silver_source_truth_rename(silver_group)
                 silver_frames.append(silver_group)
                 per_group_table_path = _per_group_table_path(
                     groups_dir,
@@ -3122,6 +3154,8 @@ def _run_eddy_gold_command(args: argparse.Namespace) -> int:
     silver_total_cols = 0
 
     try:
+        from miaproc.eddy import silver_to_internal_calc_frame
+
         logger.info("Gold reading silver: %s", args.silver_table)
         silver = _read_silver_table(args.silver_table)
         silver_total_rows = int(len(silver))
@@ -3134,8 +3168,14 @@ def _run_eddy_gold_command(args: argparse.Namespace) -> int:
 
         if group_column is None:
             logger.info("Running gold engine=%s (ungrouped)...", args.engine)
+            # M32: silver carries source-truth final names; reconstruct
+            # the internal calc frame so the hesseflux / REddyProc
+            # backend dispatcher (which expects NEE / Tair / USTAR /
+            # QC_NEE / Rg / VPD / rH) runs unchanged. Silver remains
+            # source-truth for the gold-side preservation contract.
+            internal_silver = silver_to_internal_calc_frame(silver)
             gold, config_record = _dispatch_engine(
-                args.engine, silver, args
+                args.engine, internal_silver, args
             )
             gold_with_silver, silver_extras_union = (
                 _attach_silver_columns_to_gold(gold, silver)
@@ -3164,8 +3204,11 @@ def _run_eddy_gold_command(args: argparse.Namespace) -> int:
                 silver_group = silver.loc[
                     silver[group_column] == category
                 ].reset_index(drop=True)
+                internal_silver_group = silver_to_internal_calc_frame(
+                    silver_group
+                )
                 gold_group, config_record = _dispatch_engine(
-                    args.engine, silver_group, args
+                    args.engine, internal_silver_group, args
                 )
                 gold_with_silver_group, silver_extras_g = (
                     _attach_silver_columns_to_gold(gold_group, silver_group)
@@ -3413,6 +3456,17 @@ def _run_eddy_bigquery_silver_command(args: argparse.Namespace) -> int:
             "tz_out": args.tz_out,
         }
 
+        # M32: stage 1 still produces backend/internal aliases
+        # (``NEE``, ``Tair``, ``USTAR``, ``QC_NEE``, ``Rg``,
+        # ``P_RAIN``, ``rH``, ``VPD``); the silver-output boundary
+        # renames them to source-truth final names (``co2_flux``,
+        # ``air_temperature_c``, ``u_star``, ``qc_co2_flux``,
+        # ``SWIN_1_1_1``, ``P_RAIN_1_1_1``, ``RH_1_1_1``,
+        # ``VPD_hpa``) so the local silver artifact, the BigQuery
+        # silver stage payload, and any downstream gold reader all
+        # see the same source-facing column shape.
+        from miaproc.eddy import apply_silver_source_truth_rename
+
         if group_column is None:
             silver = load_stage1_from_dataframes(
                 flux_df=bq_result.flux_df,
@@ -3422,6 +3476,7 @@ def _run_eddy_bigquery_silver_command(args: argparse.Namespace) -> int:
                 site_id=None,
                 drop_rain_rows=False,
             )
+            silver = apply_silver_source_truth_rename(silver)
             silver_frames.append(silver)
         else:
             _validate_group_column(
@@ -3458,6 +3513,7 @@ def _run_eddy_bigquery_silver_command(args: argparse.Namespace) -> int:
                     site_id=None,
                     drop_rain_rows=False,
                 )
+                silver_group = apply_silver_source_truth_rename(silver_group)
                 silver_frames.append(silver_group)
                 per_group_table_path = _per_group_table_path(
                     groups_dir,
@@ -3829,6 +3885,7 @@ def _run_eddy_bigquery_gold_command(args: argparse.Namespace) -> int:
         from miaproc.eddy import (
             BigQuerySilverInputConfig,
             read_bigquery_silver_input,
+            silver_to_internal_calc_frame,
         )
 
         silver_cfg = BigQuerySilverInputConfig(
@@ -3873,8 +3930,15 @@ def _run_eddy_bigquery_gold_command(args: argparse.Namespace) -> int:
 
         if group_column is None:
             logger.info("Running gold engine=%s (ungrouped)...", args.engine)
+            # M32: silver carries source-truth final names; rebuild the
+            # internal calc frame (NEE / Tair / USTAR / QC_NEE / Rg /
+            # VPD / rH) before dispatching to the backend so hesseflux
+            # / REddyProc / dynamic-u* / prepare_reddyproc_input keep
+            # working unchanged. Silver retains source-truth names for
+            # the gold-side preservation contract.
+            internal_silver = silver_to_internal_calc_frame(silver)
             gold, config_record = _dispatch_engine(
-                args.engine, silver, args
+                args.engine, internal_silver, args
             )
             gold_with_silver, silver_extras_union = (
                 _attach_silver_columns_to_gold(gold, silver)
@@ -3903,8 +3967,11 @@ def _run_eddy_bigquery_gold_command(args: argparse.Namespace) -> int:
                 silver_group = silver.loc[
                     silver[group_column] == category
                 ].reset_index(drop=True)
+                internal_silver_group = silver_to_internal_calc_frame(
+                    silver_group
+                )
                 gold_group, config_record = _dispatch_engine(
-                    args.engine, silver_group, args
+                    args.engine, internal_silver_group, args
                 )
                 gold_with_silver_group, silver_extras_g = (
                     _attach_silver_columns_to_gold(gold_group, silver_group)
@@ -4032,6 +4099,7 @@ def _run_eddy_bigquery_gold_command(args: argparse.Namespace) -> int:
                 input_df=silver,
                 collision_actions=gold_collision_actions,
                 would_write=_gold_would_write(args),
+                input_alias_map=GOLD_SILVER_INPUT_ALIASES,
             )
             logger.info(
                 "Gold stage-payload dry-run: rows=%d cols=%d dir=%s "

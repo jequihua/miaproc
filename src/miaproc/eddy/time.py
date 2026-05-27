@@ -161,7 +161,25 @@ def regularize_time_grid(
       - time_grid  = seq(from=start_time, to=end_time, by="30 min")
       - left_join(time_frame, df, by="DateTime")
 
-    Returns a new dataframe with a continuous time grid, inserting rows where timestamps are missing.
+    Returns a new dataframe with a continuous time grid, inserting rows
+    where timestamps are missing.
+
+    M35A: when the input frame carries a separate source-truth
+    ``timestamp`` column distinct from ``datetime_col``, gap rows
+    inserted by the grid merge receive ``timestamp`` filled from the
+    regularized ``datetime_col`` value instead of NaT. This preserves
+    the M32A source-truth time series across the regularization
+    boundary so the silver writeback identity contract
+    (`prepare_silver_stage_payload` synthesizes
+    `primary_key = site_id|iso(timestamp)`) does not see NaT on
+    inserted rows and `validate_stage_table` does not refuse with
+    `null_timestamp` / `null_primary_key`. The fill respects the
+    existing tz-awareness of the source `timestamp` column. When the
+    input frame carries a single uniform non-null ``site_id`` value,
+    gap rows inherit that ``site_id`` so the group identity survives
+    the gap. Measurement columns remain NaN/null on inserted rows.
+    Behavior is unchanged when neither a separate `timestamp` column
+    nor a uniform `site_id` is present.
     """
     if datetime_col not in df.columns:
         raise ValueError(f"regularize_time_grid: missing '{datetime_col}' column")
@@ -195,9 +213,46 @@ def regularize_time_grid(
     # Optional: keep sorted, and reset index
     merged = merged.sort_values(datetime_col).reset_index(drop=True)
 
-    # Helpful message like R (optional)
-    missing = int(merged.drop(columns=[datetime_col]).isna().all(axis=1).sum())
-    if missing > 0:
-        warnings.warn(f"regularize_time_grid: inserted {missing} missing timestamps at freq='{freq}'.")
+    # M35A: count inserted rows from the row delta so the fill logic
+    # below is independent of which measurement columns happen to be
+    # all-NaN on real input rows.
+    inserted_row_count = len(merged) - len(out)
+
+    # M35A: fill source-truth ``timestamp`` from the regularized grid
+    # value for rows where the source column is NaT but the grid join
+    # key is non-null. Only applies when the input frame carries a
+    # ``timestamp`` column distinct from ``datetime_col`` (i.e. the
+    # M32A source-truth time series rides alongside the internal
+    # ``DateTime``). Skipped when the frame has no separate
+    # ``timestamp`` column, preserving legacy behavior for callers
+    # that pass in ``DateTime``-only frames.
+    if "timestamp" in merged.columns and "timestamp" != datetime_col:
+        ts_isna = merged["timestamp"].isna()
+        dt_present = merged[datetime_col].notna()
+        fill_mask = ts_isna & dt_present
+        if fill_mask.any():
+            grid_values = pd.to_datetime(
+                merged.loc[fill_mask, datetime_col], utc=True, errors="coerce"
+            )
+            existing_dtype = merged["timestamp"].dtype
+            if isinstance(existing_dtype, pd.DatetimeTZDtype):
+                grid_values = grid_values.dt.tz_convert(existing_dtype.tz)
+            merged.loc[fill_mask, "timestamp"] = grid_values
+
+    # M35A: propagate a uniform ``site_id`` value onto inserted rows
+    # so the group identity survives the gap. Only fires when the
+    # post-merge frame has exactly one distinct non-null ``site_id``
+    # value (single-site or per-group call); multi-site frames are
+    # left alone so the regularization path stays neutral on
+    # cross-group data.
+    if "site_id" in merged.columns:
+        unique_sites = merged["site_id"].dropna().unique()
+        if len(unique_sites) == 1:
+            merged["site_id"] = merged["site_id"].fillna(unique_sites[0])
+
+    if inserted_row_count > 0:
+        warnings.warn(
+            f"regularize_time_grid: inserted {inserted_row_count} missing timestamps at freq='{freq}'."
+        )
 
     return merged

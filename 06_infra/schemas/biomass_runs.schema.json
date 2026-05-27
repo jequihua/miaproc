@@ -1,0 +1,152 @@
+[
+  {
+    "name": "run_id",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Unique run identifier for the biomass BigQuery orchestration run."
+  },
+  {
+    "name": "started_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "UTC timestamp when the run started."
+  },
+  {
+    "name": "finished_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "UTC timestamp when the run finished."
+  },
+  {
+    "name": "status",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "Closed-set run status: running, succeeded, stage_only_succeeded, failed, validation_failed."
+  },
+  {
+    "name": "bq_input_project",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Input BigQuery project read by miaproc biomass run-bigquery."
+  },
+  {
+    "name": "bq_input_dataset",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Input BigQuery dataset read by miaproc biomass run-bigquery."
+  },
+  {
+    "name": "bq_input_table",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Input forest-structure table read by miaproc biomass run-bigquery."
+  },
+  {
+    "name": "bq_output_project",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Output project containing stage/final/control tables."
+  },
+  {
+    "name": "bq_output_dataset",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Output dataset containing biomass stage/final tables."
+  },
+  {
+    "name": "bq_stage_table",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Biomass stage table written with WRITE_TRUNCATE."
+  },
+  {
+    "name": "bq_final_table",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Final biomass table merged into only when explicitly authorized."
+  },
+  {
+    "name": "merge_key_column",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Merge identity column; default primary_key."
+  },
+  {
+    "name": "read_input_rows",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Rows read from the source table."
+  },
+  {
+    "name": "stage_rows",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Rows loaded into the stage table."
+  },
+  {
+    "name": "estimated_rows",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Rows with non-null biomass_estimate."
+  },
+  {
+    "name": "skipped_rows",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Rows preserved but not estimated."
+  },
+  {
+    "name": "dataset",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Equation dataset filter used by the run; default dina."
+  },
+  {
+    "name": "equations_source",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Packaged or user-supplied equation source."
+  },
+  {
+    "name": "merge_attempted",
+    "type": "BOOL",
+    "mode": "NULLABLE",
+    "description": "True only if final MERGE was attempted."
+  },
+  {
+    "name": "merge_authorized",
+    "type": "BOOL",
+    "mode": "NULLABLE",
+    "description": "True when allow_final_merge was explicitly authorized."
+  },
+  {
+    "name": "merge_inserted_rows",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Inserted row count reported by BigQuery when available."
+  },
+  {
+    "name": "merge_updated_rows",
+    "type": "INT64",
+    "mode": "NULLABLE",
+    "description": "Updated row count reported by BigQuery when available."
+  },
+  {
+    "name": "miaproc_version",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "miaproc package version recorded by the CLI when available."
+  },
+  {
+    "name": "bigquery_client_version",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "google-cloud-bigquery client version recorded when available."
+  },
+  {
+    "name": "error_text",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Failure text for failed or validation_failed runs."
+  }
+]

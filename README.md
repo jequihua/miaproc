@@ -237,13 +237,13 @@ mimic recipe.
 
 #### Colleague handoff (M18)
 
-The colleague-facing draft for cloud-wrapping the biomass container
-— responsibility split, draft cloud-wrapper invocation shapes, and
-an explicit non-authoritative framing for infra colleagues — lives
-at
-[`06_infra/biomass_colleague_handoff_drafts.md`](06_infra/biomass_colleague_handoff_drafts.md)
+The canonical biomass cloud-engineer handoff — responsibility
+split, Docker build + Cloud Run command shapes, Google Cloud /
+service-account binding placeholders, and an explicit
+non-authoritative framing for infra colleagues — lives at
+[`06_infra/biomass_handoff.md`](06_infra/biomass_handoff.md)
 (parallel to the eddy-side handoff at
-[`06_infra/eddy_colleague_handoff_drafts.md`](06_infra/eddy_colleague_handoff_drafts.md)).
+[`06_infra/eddy_handoff.md`](06_infra/eddy_handoff.md)).
 
 #### BigQuery-native biomass enrichment (M19)
 
@@ -982,8 +982,11 @@ What is **not** in scope for M8/M9 (deferred to follow-up passes):
   `manglaria-staging:manglaria_lakehouse_ds`, table-level
   `bigquery.dataViewer` on the two named `manglaria.*` source
   tables, and `artifactregistry.reader` on the AR repo;
-  copy-pasteable `gcloud` / `bq` commands live at
-  [`06_infra/cloudrun/iam-grants-required.md`](06_infra/cloudrun/iam-grants-required.md));
+  the canonical IAM-binding placeholders + recommended scopes
+  for the eddy and biomass service accounts now live in the
+  cloud-engineer handoffs at
+  [`06_infra/eddy_handoff.md`](06_infra/eddy_handoff.md) and
+  [`06_infra/biomass_handoff.md`](06_infra/biomass_handoff.md));
 - Terraform / IaC codification (deferred decision; the YAML
   manifests under [`06_infra/cloudrun/`](06_infra/cloudrun/)
   convert cleanly to a `google_cloud_run_v2_job` resource later).
@@ -1073,10 +1076,13 @@ Future cloud orchestration can wrap the same two commands without
 changing module logic — silver writes a stage-bucket file (or
 BigQuery stage table); gold reads it and writes a final-bucket file
 (or BigQuery final table). That wrapping is **not** owned by this
-repo. The M15 colleague-facing draft contract — responsibility
-split, draft cloud-wrapper invocation shapes, and a clear
+repo. The canonical eddy cloud-engineer handoff — responsibility
+split, Docker build + disposable BigQuery smoke command shapes,
+Google Cloud / service-account binding placeholders, and a clear
 non-authoritative framing for infra colleagues — lives at
-[`06_infra/eddy_colleague_handoff_drafts.md`](06_infra/eddy_colleague_handoff_drafts.md).
+[`06_infra/eddy_handoff.md`](06_infra/eddy_handoff.md). For the
+Terraform interaction with the disposable BigQuery smoke pattern
+see [`docs/BIGQUERY_SMOKE_TABLES_AND_TERRAFORM.md`](../docs/BIGQUERY_SMOKE_TABLES_AND_TERRAFORM.md).
 
 ### BigQuery-native silver/gold split (M22)
 
@@ -1154,13 +1160,64 @@ The current BigQuery split path preserves source columns forward:
   dropping prior-stage columns.
 
 The silver writeback payload also enforces BigQuery-unique column names
-before any stage write. The load-bearing humidity policy is:
+before any stage write under case-insensitive `casefold()` comparison
+(not pandas' case-sensitive `columns.is_unique`). The M28 defensive
+humidity policy still applies as a fallback under the M32A
+source-truth contract:
 
-- source `rH` remains `rH`;
-- an equivalent duplicate `rH` is suppressed with an audit action;
+- equivalent duplicate humidity columns are suppressed with an audit
+  action;
 - a divergent normalized humidity duplicate is renamed to `rH_norm_s`
   (or a deterministic suffixed variant if that name already exists);
 - non-humidity duplicate names raise instead of being silently fused.
+
+### Source-truth column contract (M32A) and full-flux passthrough (M34)
+
+Under the accepted M32A contract the silver and gold BigQuery stage
+payloads carry **source-truth final names** and a single `timestamp`
+column. Internal backend processing still uses canonical R-style
+names (`DateTime`, `NEE`, `Tair`, `USTAR`, `VPD`, `Rg`, `P_RAIN`,
+`rH`), but those internal passthroughs are dropped at the silver
+output boundary and at the gold redundant-passthrough boundary
+whenever the source-truth counterpart is present.
+
+Accepted internal → final mapping (M32A):
+
+```text
+DateTime       -> timestamp
+NEE            -> co2_flux
+QC_NEE         -> qc_co2_flux
+Tair           -> air_temperature_c
+USTAR          -> u_star
+VPD            -> VPD_hpa
+Rg             -> SWIN_1_1_1
+P_RAIN         -> P_RAIN_1_1_1
+rH             -> RH_1_1_1
+```
+
+Under the M34 widened contract, **every unique column** from the
+carbon-flux bronze source table survives bronze → silver → gold
+under its source name unless miaproc changes its physical units.
+Today the only unit-aware rebindings are `air_temperature ->
+air_temperature_c` and `VPD -> VPD_hpa`; every other source column
+(`h2o_flux`, `qc_h2o_flux`, `H_strg`, `LE_strg`, `co2_strg`,
+`h2o_strg`, `co2_molar_density`, `co2_mole_fraction`,
+`co2_mixing_ratio`, `h2o_molar_density`, `h2o_mole_fraction`,
+`h2o_mixing_ratio`, `sonic_temperature`, `air_pressure`,
+`air_density`, `air_heat_capacity`, `air_molar_volume`, `ET`,
+`water_vapor_density`, `e`, `es`, `specific_humidity`, `RH`,
+`Tdew`, `wind_speed`, `max_wind_speed`, `wind_dir`, `TKE`, `L`,
+`z_minus_d_div_L`, `bowen_ratio`, `x_peak`, `x_offset`, `x_10_pct`,
+`x_30_pct`, `x_50_pct`, `x_70_pct`, `x_90_pct`, `v_var`, …)
+survives under its bronze name. From the biomet bronze, only the
+three processing-used variables carry forward: `SWIN_1_1_1`,
+`P_RAIN_1_1_1`, `RH_1_1_1`.
+
+Flux-side `RH` and biomet-side `RH_1_1_1` are case-insensitively
+distinct and must both survive when both are present. The
+authoritative column mapping is
+`06_infra/schemas/eddy_bronze_to_stage_column_lineage_contract.csv`
+(deployment-facing; the package does not read it at runtime).
 
 Both BigQuery split commands expose a non-mutating dry-run mode:
 

@@ -2,8 +2,8 @@
 
 Covers ``miaproc.eddy.load_stage1_from_dataframes``: same scientific
 contract as ``load_stage1`` but consumes pandas DataFrames directly so
-the BigQuery-native eddy path does not have to round-trip through
-synthetic CSV files.
+the Parquet file workflow (and any in-memory caller) does not have to
+round-trip through synthetic CSV files.
 """
 from __future__ import annotations
 

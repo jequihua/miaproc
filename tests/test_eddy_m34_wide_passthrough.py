@@ -7,8 +7,8 @@ air_temperature_c``, ``USTAR -> u_star``, ``VPD -> VPD_hpa``,
 ``Rg -> SWIN_1_1_1``, ``P_RAIN -> P_RAIN_1_1_1``, ``rH -> RH_1_1_1``,
 ``QC_NEE -> qc_co2_flux``).
 
-M34 broadens that into a generic carry-forward rule for the eddy split
-BigQuery path: every unique column from the carbon-flux bronze/source
+M34 broadens that into a generic carry-forward rule for the eddy
+silver/gold split: every unique column from the carbon-flux bronze/source
 table must survive into silver and then gold under its source name,
 unless miaproc changes its physical units (currently
 ``air_temperature -> air_temperature_c`` and ``VPD -> VPD_hpa``). From
@@ -17,8 +17,10 @@ forward: ``SWIN_1_1_1``, ``P_RAIN_1_1_1``, ``RH_1_1_1``.
 
 These tests exercise the contract end-to-end against a 54-column
 case-study-shaped bronze flux fixture, against the silver helper
-chain, against the silver CLI dry-run and writeback paths, and against
-the gold stage-payload assembly. The package code already preserves
+chain, against the published silver of the ``eddy run-silver`` file
+workflow (M002-S04 replacement for the removed BigQuery silver CLI
+dry-run and writeback paths), and against the gold stage-payload
+assembly. The package code already preserves
 unknown source columns by virtue of stage 1's column-preserving merge
 plus the helper-level renames; these tests lock that behavior in so a
 future refactor cannot silently narrow the silver / gold schemas.
@@ -37,16 +39,15 @@ import pytest
 
 from miaproc import cli
 from miaproc.eddy import (
-    BigQueryReadResult,
     DuplicateStageColumnsError,
     SILVER_BRONZE_TO_FINAL_ALIASES,
     SILVER_INTERNAL_TO_FINAL_RENAME,
-    WritebackResult,
     apply_silver_source_truth_rename,
     load_stage1_from_dataframes,
     prepare_silver_stage_payload,
-    prepare_stage_dataframe,
 )
+from miaproc.eddy.io import read_parquet_table, write_parquet_table
+from miaproc.eddy.payload import prepare_gold_stage_payload
 
 
 # ---------------------------------------------------------------------------
@@ -200,22 +201,6 @@ def _silent_warnings() -> None:
     # Stage 1 emits informational warnings about timestamp range and
     # 'u_star -> u.' aliasing; they are not relevant to M34 assertions.
     warnings.simplefilter("ignore")
-
-
-def _make_silver_argv(tmp_path: Path, **overrides: Any) -> list[str]:
-    base = {
-        "--bq-input-project": "manglaria",
-        "--bq-input-dataset": "manglaria_lakehouse_ds",
-        "--bq-flux-table": "carbon_flux_eddycovariance",
-        "--bq-biomet-table": "carbon_flux_biomet",
-        "--output-table": str(tmp_path / "silver.csv"),
-        "--output-run-json": str(tmp_path / "silver_run.json"),
-    }
-    base.update({k: str(v) for k, v in overrides.items()})
-    argv = ["eddy", "run-bigquery-silver"]
-    for k, v in base.items():
-        argv.extend([k, v])
-    return argv
 
 
 # ---------------------------------------------------------------------------
@@ -392,7 +377,7 @@ class TestSilverHelperWidePreservationM34:
         # No internal-name passthrough survives in the payload.
         for leak in INTERNAL_PASSTHROUGH_LEAKS:
             assert leak not in payload.columns, (leak, payload.columns)
-        # Case-insensitive BigQuery field-key uniqueness.
+        # Case-insensitive field-key uniqueness.
         keys = [c.casefold() for c in payload.columns]
         assert len(set(keys)) == len(keys), payload.columns
         # The widened silver payload carries 57 columns for the
@@ -419,182 +404,89 @@ class TestSilverHelperWidePreservationM34:
 
 
 # ---------------------------------------------------------------------------
-# 3. Silver CLI dry-run on a wide bronze: metadata must report the
-#    wide columns as preserved with no missing inputs and unit-aware
-#    aliases recorded.
+# 3/4. Silver file CLI on a wide bronze (M002-S04 replacement for the
+#    retired BigQuery silver CLI dry-run and writeback tests): the same
+#    wide bronze flux/biomet frames are explicit Parquet inputs to
+#    ``eddy run-silver``, and the published silver Parquet (the payload
+#    the file workflow hands downstream) must report no missing input
+#    column, carry the wide columns under their bronze names, rebind only
+#    the unit-transformed names and be casefold-unique.
 # ---------------------------------------------------------------------------
 
 
-class TestSilverCLIDryRunWidePassthroughM34:
-    def _patch_wide_read(self, monkeypatch) -> None:
-        def _fake_read(cfg, *, client=None):
-            return BigQueryReadResult(
-                flux_df=_wide_bronze_flux_df(),
-                biomet_df=_wide_biomet_df(),
-                flux_rows=4,
-                biomet_rows=4,
-                flux_query="SELECT * FROM flux",
-                biomet_query="SELECT * FROM biomet",
-                query_parameters={},
-            )
-
-        import miaproc.eddy as eddy_pkg
-
-        monkeypatch.setattr(eddy_pkg, "read_bigquery_inputs", _fake_read)
-
-        # Refuse to engage writeback under dry-run.
-        def _no_writeback(*_a, **_kw):
-            raise AssertionError(
-                "run_writeback must not be called during a dry-run"
-            )
-
-        monkeypatch.setattr(eddy_pkg, "run_writeback", _no_writeback)
-
-    def test_silver_dry_run_metadata_has_no_missing_input_columns(
-        self, tmp_path, monkeypatch,
-    ):
+class TestSilverFileCLIWidePassthroughM34:
+    @staticmethod
+    def _run_silver(tmp_path: Path) -> tuple[pd.DataFrame, dict[str, Any]]:
         _silent_warnings()
-        self._patch_wide_read(monkeypatch)
+        flux_path = tmp_path / "flux.parquet"
+        biomet_path = tmp_path / "biomet.parquet"
+        write_parquet_table(flux_path, _wide_bronze_flux_df())
+        write_parquet_table(biomet_path, _wide_biomet_df())
+        run_dir = tmp_path / "silver_run"
+        argv = [
+            "eddy", "run-silver",
+            "--flux-parquet", str(flux_path),
+            "--biomet-parquet", str(biomet_path),
+            "--output-table", str(run_dir / "silver.parquet"),
+            "--output-run-json", str(run_dir / "silver_run.json"),
+        ]
+        assert cli.main(argv) == cli.SUCCESS_EXIT
+        silver = read_parquet_table(
+            run_dir / "silver.parquet", flag="--output-table", role="silver"
+        )
+        meta = json.loads((run_dir / "silver_run.json").read_text(encoding="utf-8"))
+        return silver, meta
 
-        dry_dir = tmp_path / "silver_dry"
-        argv = _make_silver_argv(
-            tmp_path,
-            **{"--stage-payload-dry-run-dir": str(dry_dir)},
-        )
-        rc = cli.main(argv)
-        assert rc == cli.SUCCESS_EXIT
-        meta = json.loads(
-            (dry_dir / "stage_payload_metadata.json").read_text(encoding="utf-8")
-        )
-        assert meta["missing_input_columns"] == []
-        assert meta["columns_unique"] is True
-        assert meta["duplicate_columns"] == []
-        for flag in (
-            "bigquery_write_attempted",
-            "validation_sql_attempted",
-            "merge_attempted",
-            "watermark_advanced",
-        ):
-            assert meta[flag] is False, (flag, meta[flag])
+    def test_silver_file_run_has_no_missing_input_columns(self, tmp_path):
+        silver, meta = self._run_silver(tmp_path)
+        cols = list(silver.columns)
+        # Every bronze flux column survives under its own name or its
+        # unit-aware alias (the former dry-run missing_input_columns check).
+        missing = [
+            bronze for bronze in WIDE_FLUX_COLUMNS
+            if SILVER_BRONZE_TO_FINAL_ALIASES.get(bronze, bronze) not in cols
+        ]
+        assert missing == [], missing
+        assert silver.columns.is_unique, cols
+        assert meta["column_collision_actions"] == []
 
-    def test_silver_dry_run_metadata_lists_representative_wide_columns(
-        self, tmp_path, monkeypatch,
-    ):
-        _silent_warnings()
-        self._patch_wide_read(monkeypatch)
-        dry_dir = tmp_path / "silver_dry"
-        argv = _make_silver_argv(
-            tmp_path,
-            **{"--stage-payload-dry-run-dir": str(dry_dir)},
-        )
-        rc = cli.main(argv)
-        assert rc == cli.SUCCESS_EXIT
-        meta = json.loads(
-            (dry_dir / "stage_payload_metadata.json").read_text(encoding="utf-8")
-        )
-        payload_cols = set(meta["columns"])
-        preserved = set(meta["preserved_input_columns"])
+    def test_silver_file_run_lists_representative_wide_columns(self, tmp_path):
+        silver, _meta = self._run_silver(tmp_path)
+        cols = set(silver.columns)
         for c in REPRESENTATIVE_WIDE_PASSTHROUGH:
-            assert c in payload_cols, (c, sorted(payload_cols))
-            assert c in preserved, (c, sorted(preserved))
-        # Final source-truth names must be in the payload too.
+            assert c in cols, (c, sorted(cols))
         for final in NON_TIME_SOURCE_TRUTH_FINALS:
-            assert final in payload_cols, (final, sorted(payload_cols))
-        # No internal-name passthroughs leaked.
+            assert final in cols, (final, sorted(cols))
         for leak in INTERNAL_PASSTHROUGH_LEAKS:
-            assert leak not in payload_cols, (leak, sorted(payload_cols))
+            assert leak not in cols, (leak, sorted(cols))
 
-    def test_silver_dry_run_records_unit_aware_aliases_only(
-        self, tmp_path, monkeypatch,
-    ):
-        _silent_warnings()
-        self._patch_wide_read(monkeypatch)
-        dry_dir = tmp_path / "silver_dry"
-        argv = _make_silver_argv(
-            tmp_path,
-            **{"--stage-payload-dry-run-dir": str(dry_dir)},
+    def test_silver_file_run_rebinds_only_unit_aware_names(self, tmp_path):
+        silver, _meta = self._run_silver(tmp_path)
+        bronze = _wide_bronze_flux_df()
+        merged = silver.merge(
+            bronze, on="timestamp", how="inner", suffixes=("", "_bronze")
         )
-        rc = cli.main(argv)
-        assert rc == cli.SUCCESS_EXIT
-        meta = json.loads(
-            (dry_dir / "stage_payload_metadata.json").read_text(encoding="utf-8")
+        assert len(merged) == len(bronze)
+        # Unit-aware aliases: the bronze name is rebound to the final name
+        # and carries the converted values (K to degC, Pa to hPa).
+        for bronze_name, final in UNIT_AWARE_FINAL_NAMES:
+            assert bronze_name not in silver.columns, (bronze_name, list(silver.columns))
+            assert final in silver.columns, (final, list(silver.columns))
+        assert merged["air_temperature_c"].to_numpy() == pytest.approx(
+            (merged["air_temperature"] - 273.15).to_numpy()
         )
-        aliases = meta["input_column_payload_aliases"]
-        # Unit-aware aliases must be recorded.
-        assert aliases.get("air_temperature") == "air_temperature_c"
-        assert aliases.get("VPD") == "VPD_hpa"
-        # Exact pass-through columns must NOT appear as alias
-        # resolutions — they were preserved by their bronze name.
+        assert merged["VPD_hpa"].to_numpy() == pytest.approx(
+            (merged["VPD"] / 100.0).to_numpy()
+        )
+        # Exact pass-through columns keep their bronze name and values;
+        # they are not alias resolutions.
         for c in ("h2o_flux", "wind_speed", "TKE", "RH"):
-            assert c not in aliases, (c, aliases)
+            assert c not in SILVER_BRONZE_TO_FINAL_ALIASES, c
+            assert merged[c].tolist() == merged[f"{c}_bronze"].tolist(), c
 
-
-# ---------------------------------------------------------------------------
-# 4. Silver CLI real-writeback path: the staged DataFrame handed to
-#    ``run_writeback`` must carry the wide columns and be casefold-unique.
-# ---------------------------------------------------------------------------
-
-
-class TestSilverCLIWritebackWidePassthroughM34:
-    def test_silver_writeback_payload_contains_wide_columns(
-        self, tmp_path, monkeypatch,
-    ):
-        _silent_warnings()
-        captured: dict[str, Any] = {"df": None, "cfg": None}
-
-        def _fake_read(cfg, *, client=None):
-            return BigQueryReadResult(
-                flux_df=_wide_bronze_flux_df(),
-                biomet_df=_wide_biomet_df(),
-                flux_rows=4,
-                biomet_rows=4,
-                flux_query="SELECT * FROM flux",
-                biomet_query="SELECT * FROM biomet",
-                query_parameters={},
-            )
-
-        def _fake_writeback(
-            df, cfg, *, run_id, started_at, site_id=None,
-            run_payload_extras=None, client=None,
-        ):
-            captured["cfg"] = cfg
-            captured["df"] = df.copy()
-            return WritebackResult(
-                run_id=run_id,
-                status="stage_only_succeeded",
-                stage_rows=int(len(df)),
-                merge_attempted=False,
-                merge_authorized=cfg.allow_final_merge,
-                merge_inserted_rows=None,
-                merge_updated_rows=None,
-                watermark_advanced=False,
-                watermark_value=None,
-                validation_metrics={"row_count": int(len(df))},
-                stage_table_fqn=cfg.stage_table_fqn(),
-                final_table_fqn=cfg.final_table_fqn(),
-                runs_table_fqn=cfg.runs_table_fqn(),
-                watermark_table_fqn=cfg.watermark_table_fqn(),
-            )
-
-        import miaproc.eddy as eddy_pkg
-
-        monkeypatch.setattr(eddy_pkg, "read_bigquery_inputs", _fake_read)
-        monkeypatch.setattr(eddy_pkg, "run_writeback", _fake_writeback)
-
-        argv = _make_silver_argv(
-            tmp_path,
-            **{
-                "--bq-output-project": "manglaria-staging",
-                "--bq-output-dataset": "manglaria_lakehouse_ds",
-                "--bq-stage-table": "cf_s2_stage_silver_rbrl",
-                "--bq-control-dataset": "_orch",
-            },
-        )
-        rc = cli.main(argv)
-        assert rc == cli.SUCCESS_EXIT
-        df = captured["df"]
-        assert df is not None
-        cols = list(df.columns)
+    def test_silver_file_run_payload_contains_wide_columns(self, tmp_path):
+        silver, _meta = self._run_silver(tmp_path)
+        cols = list(silver.columns)
         for c in REPRESENTATIVE_WIDE_PASSTHROUGH:
             assert c in cols, (c, cols)
         for final in NON_TIME_SOURCE_TRUTH_FINALS:
@@ -606,7 +498,7 @@ class TestSilverCLIWritebackWidePassthroughM34:
 
 
 # ---------------------------------------------------------------------------
-# 5. Gold preservation: prepare_stage_dataframe must preserve every
+# 5. Gold preservation: prepare_gold_stage_payload must preserve every
 #    widened silver source column and append the gold-only outputs.
 # ---------------------------------------------------------------------------
 
@@ -621,7 +513,7 @@ class TestGoldWidePassthroughM34:
         base = pd.date_range("2025-08-01", periods=n, freq="30min", tz="UTC")
         # Backend output (uppercase analytical names + DateTime + the
         # internal passthroughs the backend emits alongside gap-filled
-        # outputs). prepare_stage_dataframe drops the internal
+        # outputs). prepare_gold_stage_payload drops the internal
         # passthroughs when a source-truth counterpart is present.
         backend = pd.DataFrame({
             "DateTime": base,
@@ -675,10 +567,9 @@ class TestGoldWidePassthroughM34:
     def test_gold_stage_payload_preserves_widened_silver_columns(self):
         _silent_warnings()
         processed = self._wide_processed_gold_frame()
-        payload = prepare_stage_dataframe(
+        payload = prepare_gold_stage_payload(
             processed,
             site_id="RBRL",
-            preserve_payload_columns=True,
         )
         cols = set(payload.columns)
         # Every representative wide pass-through survives into gold.
@@ -702,7 +593,7 @@ class TestGoldWidePassthroughM34:
         # absent (S2_FILT_1_RENAME_MAP renames them in place).
         for upper in ("NEE_f", "NEE_fqc", "Rg_f", "Tair_f", "VPD_f"):
             assert upper not in cols, (upper, sorted(cols))
-        # Case-insensitive BigQuery field-key uniqueness.
+        # Case-insensitive field-key uniqueness.
         keys = [c.casefold() for c in payload.columns]
         assert len(set(keys)) == len(keys), payload.columns
 

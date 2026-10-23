@@ -22,7 +22,7 @@ If you want a non-interactive CLI that also **writes** machine-readable
 artifacts (processed table + diagnostics JSON + run-metadata JSON) for
 batch or cloud execution, use the `miaproc` console script described
 in [`../README.md`](../README.md) ("CLI (production, non-interactive)")
-and the bundled Docker profile in [`../../docker/README.md`](../../docker/README.md).
+and the bundled Docker profile in [`../docker/README.md`](../docker/README.md).
 The CLI's three `--engine` modes (`hesseflux-native`,
 `hesseflux-ltwrapper`, `reddyproc-reference`) line up 1:1 with examples
 01–03 below.
@@ -32,8 +32,8 @@ The CLI's three `--engine` modes (`hesseflux-native`,
 See [`../README.md`](../README.md) for the full install matrix. Minimum:
 
 ```bash
-pip install -e "08_pkg[dev,hesseflux]"        # Python-only examples 01/02
-pip install -e "08_pkg[dev,hesseflux,reddyproc]"  # adds R-backed example 03
+pip install -e ".[dev,hesseflux]"            # from the package root; examples 01/02
+pip install -e ".[dev,hesseflux,reddyproc]"  # adds R-backed example 03 (R: see ../docker/README.md)
 ```
 
 ## Required input shape
@@ -41,7 +41,7 @@ pip install -e "08_pkg[dev,hesseflux,reddyproc]"  # adds R-backed example 03
 All examples load stage-1 via `miaproc.eddy.load_stage1`. The flux and biomet
 CSV folders must have at least these columns (see
 [`../backend_contract.md`](../backend_contract.md) and
-[`../../01_data/schema.md`](../../01_data/schema.md)):
+[`../06_infra/schemas/README.md`](../06_infra/schemas/README.md)):
 
 - flux: `DateTime` (or `date` + `time`), `NEE`, `USTAR` (or `u_star`),
   `QC_NEE`, `Tair`, `VPD`
@@ -73,12 +73,12 @@ R_HOME="/path/to/R-4.5.3" \
 
 ## Scientific framing
 
-Per [Decision 009](../../05_governance/decision_log.md) and
-[Decision 011](../../05_governance/decision_log.md), the hesseflux backend is
+Per development-history Decisions 009 and 011 (the decision log is not
+shipped; see [`../backend_contract.md`](../backend_contract.md)), the hesseflux backend is
 REddyProc-**inspired**, not parity. The wrapper mode (example 02) improves
 Reco correlation with REddyProc on the RBMNN closure track but does not
 produce magnitude parity — wrapper-vs-REddyProc OLS slope is ~2.15. See
-[`../../docs/m5_reddyproc_hesseflux_magnitude_note.md`](../../docs/m5_reddyproc_hesseflux_magnitude_note.md)
+[`../docs/m5_reddyproc_hesseflux_magnitude_note.md`](../docs/m5_reddyproc_hesseflux_magnitude_note.md)
 for the full comparison.
 
 Wrapper mode:

@@ -2,9 +2,9 @@
 
 ## Package Architecture
 
-`miaproc` should remain a Python package with domain modules:
+`miaproc` is an eddy-covariance-only Python package (the former
+biomass/allometry module was removed in M001-S02):
 
-- `miaproc.biomass`: existing biomass/allometry functionality.
 - `miaproc.eddy`: eddy covariance ingestion, QC, preprocessing, and
   post-processing.
 
@@ -48,37 +48,34 @@ Any architectural change that affects backend selection, output schema, sign
 conventions, or dependency requirements must update governance logs and pass a
 review gate.
 
-## Cloud Deployment Posture (M11)
+## Storage Boundary (M002)
 
-The accepted M7→M10 BigQuery-native eddy path
-(`miaproc eddy run-bigquery`) is deployable to Google Cloud as a
-**Cloud Run Job**, not a Cloud Run service:
+Ordinary local or mounted file paths are the storage interface. The stage
+commands `miaproc eddy run-silver` / `run-gold` read explicit immutable
+Parquet files (or legacy CSV directories) and publish each invocation into
+one fresh run directory with a completion manifest written last
+([`../docs/RUN_PUBLICATION.md`](../docs/RUN_PUBLICATION.md)). The package
+contains no cloud SDK, credential lookup or network access for data
+processing; the BigQuery transport was removed in M002-S04
+([`../docs/MIGRATING_FROM_BIGQUERY.md`](../docs/MIGRATING_FROM_BIGQUERY.md)).
 
-- the unit of work is one batch execution per RBRL slice, not a
-  request handler;
+## Batch Deployment Posture
+
+When engineers deploy the image to a batch service (for example a Cloud Run
+Job), the unit of work is one batch execution per stage, input window and
+attempt, not a request handler:
+
 - exit codes drive success / failure semantics for the orchestrator
   (`0` success, `2` preflight not project-scoped approved, `3`
-  validation failure, `4` runtime processing failure);
-- the image is the same `miaproc:cli-r45` runtime profile shipped
-  for local execution; nothing in the cloud path requires a second
-  container or a re-architecting of the runtime contract.
+  validation failure, `4` runtime processing failure, `5` published but
+  finish unconfirmed — decide with `miaproc eddy validate-run`);
+- inputs are mounted read-only, outputs go to a writable mount, and each
+  execution receives an exclusive, never-reused run directory name;
+- the image is the same Python + R 4.5.1 + REddyProc runtime profile used
+  locally; Decision 010 / risk R11 project-scoped preflight runs in the
+  job exactly as it runs locally, with no env-var or flag bypass.
 
-Job manifests live in [`cloudrun/`](cloudrun/); the deployment +
-IAM contract + Terraform-deferral notes live in
-[`deployment.md`](deployment.md); the operator runbook lives in
-[`../09_ops/runbooks.md`](../09_ops/runbooks.md).
-
-The cloud deployment **does not change** any of the following:
-
-- Decision 010 / risk R11: project-scoped Python preflight runs in
-  cloud the same way it runs locally; no env-var or flag bypass.
-- Production-read-only posture: the Cloud Run Job is configured to
-  bill its BigQuery query jobs to `manglaria-staging`
-  (`--bq-billing-project=manglaria-staging`) but to read source
-  tables from `manglaria` cross-project. Write IAM on
-  `manglaria` is forbidden by both code
-  (`forbidden_write_projects=("manglaria",)`) and IAM contract.
-- Module-aware CLI shape (`miaproc <domain> <command>`): the same
-  `eddy run-bigquery` subcommand is the only entrypoint the cloud
-  job uses; future biomass / non-eddy modules drop in as siblings
-  without a second deployment surface.
+The example job manifest lives in [`cloudrun/`](cloudrun/); deployment
+notes live in [`deployment.md`](deployment.md); the operator runbook lives
+in [`../09_ops/runbooks.md`](../09_ops/runbooks.md). These are examples for
+engineers; no deployment is performed or qualified by this package.

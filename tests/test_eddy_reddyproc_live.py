@@ -44,38 +44,38 @@ requires_reddyproc = pytest.mark.skipif(
 
 
 def _synthetic_long_series(days: int = 100) -> pd.DataFrame:
-    """Multi-day 30-min grid with reasonable-looking eddy values for a
-    smoke run. Not scientifically validated; only shape and schema matter.
+    """Multi-day 30-min stage-1 frame from the deterministic synthetic
+    generator (``synthetic_eddy.py``; no real observations).
 
     REddyProc's ``fCheckHHTimeSeries`` rejects series shorter than 90 days
     with ``sEddyProc.initialize::: Time series is shorter than 90 days
     (three months) of data``. The default here is set above that floor so
     the live smoke run exercises real dispatch + gap-fill + partitioning
     rather than aborting at input validation.
+
+    M001-S01: with the previous inline frame (identical diurnal cycles every
+    day, linear light response) REddyProc 1.3.4's ``sGLFluxPartition``
+    stopped with ``Estimated valid temperature sensitivity for only 0
+    windows. Stopping.`` in the controlled image. The generator supplies
+    seasonal and day-to-day temperature variation, Lloyd-Taylor respiration
+    and a saturating light response, and runs through the real stage-1
+    pipeline.
     """
-    n = days * 48
-    start = pd.Timestamp("2025-08-01 00:00", tz="UTC")
-    dt = pd.date_range(start, periods=n, freq="30min")
-    rng = np.random.default_rng(42)
-    hour = dt.hour + dt.minute / 60.0
-    rg = np.clip(800 * np.sin(np.pi * (hour - 6) / 12), 0, None)
-    tair = 20 + 8 * np.sin(np.pi * (hour - 6) / 12)
-    vpd = 5 + 10 * np.clip(np.sin(np.pi * (hour - 6) / 12), 0, None)
-    nee = rng.normal(0, 2, n) - 0.01 * rg + 0.3 * (tair - 20)
-    ustar = rng.uniform(0.05, 0.4, n)
-    qc = rng.integers(0, 3, n)
-    return pd.DataFrame(
-        {
-            "DateTime": dt,
-            "NEE": nee,
-            "USTAR": ustar,
-            "QC_NEE": qc,
-            "Tair": tair,
-            "VPD": vpd,
-            "Rg": rg,
-            "rH": rng.uniform(40, 90, n),
-        }
+    import warnings
+
+    import synthetic_eddy
+    from miaproc.eddy import load_stage1_from_dataframes
+
+    flux, biomet = synthetic_eddy.generate_raw_frames(
+        days=days, seed=synthetic_eddy.TEST_FIXTURE_SEED
     )
+    for frame in (flux, biomet):
+        frame.insert(0, "timestamp", frame.pop("DateTime"))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        return load_stage1_from_dataframes(
+            flux_df=flux, biomet_df=biomet, tz_in="UTC", tz_out="UTC"
+        )
 
 
 class TestRpy2ImportSmoke:
@@ -165,6 +165,11 @@ class TestLiveRun:
         assert diag["backend"] == "reddyproc-rpy2"
         assert diag["site"]["local_tz"] == "America/Mazatlan"
         assert diag["ustar"]["scenario"] == "U50"
+        # C2: a real partition, not schema-only all-NaN output.
+        paired = np.isfinite(out["GPP"].to_numpy(dtype=float)) & np.isfinite(
+            out["Reco"].to_numpy(dtype=float)
+        )
+        assert int(paired.sum()) >= 48
 
 
 # ----------------------------------------------------------------------

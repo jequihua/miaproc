@@ -102,8 +102,8 @@ def _make_silver_argv(tmp_path: Path, **overrides: Any) -> list[str]:
     base = {
         "--flux-dir": str(flux),
         "--biomet-dir": str(biomet),
-        "--output-table": str(tmp_path / "silver.csv"),
-        "--output-run-json": str(tmp_path / "silver_run.json"),
+        "--output-table": str(tmp_path / "srun" / "silver.csv"),
+        "--output-run-json": str(tmp_path / "srun" / "silver_run.json"),
     }
     base.update({k: str(v) for k, v in overrides.items()})
     argv = ["eddy", "run-silver"]
@@ -120,15 +120,17 @@ def _make_gold_argv(
     base = {
         "--silver-table": str(silver_path),
         "--engine": "hesseflux-native",
-        "--output-table": str(tmp_path / "gold.csv"),
-        "--output-diagnostics-json": str(tmp_path / "gold_diag.json"),
-        "--output-run-json": str(tmp_path / "gold_run.json"),
+        "--output-table": str(tmp_path / "grun" / "gold.csv"),
+        "--output-diagnostics-json": str(tmp_path / "grun" / "gold_diag.json"),
+        "--output-run-json": str(tmp_path / "grun" / "gold_run.json"),
     }
     base.update({k: str(v) for k, v in overrides.items()})
     argv = ["eddy", "run-gold"]
     for k, v in base.items():
         argv.extend([k, v])
-    return argv
+    # M002-S03: hand-written CSV silver fixtures are the explicit legacy
+    # path; a silver inside a published run is still manifest-validated.
+    return argv + ["--allow-legacy-silver-csv"]
 
 
 @pytest.fixture
@@ -201,11 +203,11 @@ class TestArgParsing:
                 "--silver-table",
                 str(silver),
                 "--output-table",
-                str(tmp_path / "gold.csv"),
+                str(tmp_path / "grun" / "gold.csv"),
                 "--output-diagnostics-json",
-                str(tmp_path / "diag.json"),
+                str(tmp_path / "grun" / "diag.json"),
                 "--output-run-json",
-                str(tmp_path / "run.json"),
+                str(tmp_path / "grun" / "run.json"),
                 "--repo-root",
                 str(tmp_path),
             ]
@@ -235,8 +237,8 @@ class TestSilverStage:
         rc = cli.main(_make_silver_argv(tmp_path))
         assert rc == cli.SUCCESS_EXIT
 
-        silver_path = tmp_path / "silver.csv"
-        run_path = tmp_path / "silver_run.json"
+        silver_path = tmp_path / "srun" / "silver.csv"
+        run_path = tmp_path / "srun" / "silver_run.json"
         assert silver_path.exists()
         assert run_path.exists()
 
@@ -283,7 +285,7 @@ class TestSilverStage:
     def test_silver_writes_parquet_when_extension_matches(
         self, tmp_path, patch_load_stage1
     ):
-        out = tmp_path / "silver.parquet"
+        out = tmp_path / "srun" / "silver.parquet"
         rc = cli.main(
             _make_silver_argv(tmp_path, **{"--output-table": str(out)})
         )
@@ -303,7 +305,7 @@ class TestSilverStage:
     ):
         rc = cli.main(
             _make_silver_argv(
-                tmp_path, **{"--output-table": str(tmp_path / "silver.xlsx")}
+                tmp_path, **{"--output-table": str(tmp_path / "srun" / "silver.xlsx")}
             )
         )
         assert rc == cli.VALIDATION_EXIT
@@ -365,10 +367,10 @@ def _write_silver_csv(tmp_path: Path) -> Path:
 
 
 def _write_silver_parquet(tmp_path: Path) -> Path:
-    silver = _stub_silver_df()
-    out = tmp_path / "silver.parquet"
-    silver.to_parquet(out, index=False)
-    return out
+    # M002-S03: a Parquet silver must be a published run (manifest).
+    from publish_helpers import publish_table
+
+    return publish_table(tmp_path / "silver_pub", _stub_silver_df(), "silver.parquet")
 
 
 class TestGoldStage:
@@ -379,9 +381,9 @@ class TestGoldStage:
         rc = cli.main(_make_gold_argv(tmp_path, silver))
         assert rc == cli.SUCCESS_EXIT
 
-        gold_path = tmp_path / "gold.csv"
-        diag_path = tmp_path / "gold_diag.json"
-        run_path = tmp_path / "gold_run.json"
+        gold_path = tmp_path / "grun" / "gold.csv"
+        diag_path = tmp_path / "grun" / "gold_diag.json"
+        run_path = tmp_path / "grun" / "gold_run.json"
         assert gold_path.exists()
         assert diag_path.exists()
         assert run_path.exists()
@@ -436,7 +438,7 @@ class TestGoldStage:
         silver = _write_silver_parquet(tmp_path)
         rc = cli.main(_make_gold_argv(tmp_path, silver))
         assert rc == cli.SUCCESS_EXIT
-        gold_df = pd.read_csv(tmp_path / "gold.csv")
+        gold_df = pd.read_csv(tmp_path / "grun" / "gold.csv")
         assert "GPP" in gold_df.columns
         assert "H" in gold_df.columns
 
@@ -596,7 +598,7 @@ class TestGoldPreflightGate:
 
         # Run JSON records the preflight outcome.
         run = json.loads(
-            (tmp_path / "gold_run.json").read_text(encoding="utf-8")
+            (tmp_path / "grun" / "gold_run.json").read_text(encoding="utf-8")
         )
         assert "preflight" in run
         assert run["preflight"]["approval_source"].startswith("project-scoped")
@@ -670,14 +672,14 @@ class TestSilverGoldRoundtrip:
 
         # Step 2: run-gold consumes silver.csv
         rc2 = cli.main(
-            _make_gold_argv(tmp_path, tmp_path / "silver.csv")
+            _make_gold_argv(tmp_path, tmp_path / "srun" / "silver.csv")
         )
         assert rc2 == cli.SUCCESS_EXIT
 
         # Gold preserves silver-only columns even after CSV tz
         # round-trip. M32: silver carries source-truth final names
         # (``P_RAIN_1_1_1``, ``RH_1_1_1``) and gold attaches them.
-        gold_df = pd.read_csv(tmp_path / "gold.csv")
+        gold_df = pd.read_csv(tmp_path / "grun" / "gold.csv")
         for col in ("H", "LE", "P_RAIN_1_1_1", "RH_1_1_1"):
             assert col in gold_df.columns, col
         for col in ("GPP", "Reco", "NEE_f"):

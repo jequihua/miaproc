@@ -154,6 +154,81 @@ Required error behavior:
   diagnostic according to the public API design.
 - Unsupported backend: raise a clear backend-selection error.
 
+## Source-Facing Payload Helpers
+
+The transport-neutral silver/gold payload logic lives in
+`miaproc.eddy.payload`, which imports only pandas and `miaproc.eddy.constants`
+(no cloud SDK client, no credential lookup):
+
+- `apply_silver_source_truth_rename` / `silver_to_internal_calc_frame`: the
+  nine internal-to-final mappings in `SILVER_INTERNAL_TO_FINAL_RENAME`
+  (`DateTime -> timestamp`, `NEE -> co2_flux`, `QC_NEE -> qc_co2_flux`,
+  `Tair -> air_temperature_c`, `USTAR -> u_star`, `VPD -> VPD_hpa`,
+  `Rg -> SWIN_1_1_1`, `P_RAIN -> P_RAIN_1_1_1`, `rH -> RH_1_1_1`) and their
+  reverse; `timestamp` wins when both time columns are present.
+- `validate_source_columns_unique`, `ensure_unique_stage_columns` and
+  `column_field_key`: column uniqueness with the deterministic
+  `rH` / `rH_norm_s` humidity policy; other duplicates raise
+  `DuplicateStageColumnsError`.
+- `prepare_local_silver_payload` / `prepare_local_gold_payload`: the
+  source-facing payloads that `eddy run-silver` / `eddy run-gold` write to
+  Parquet. Exactly one `timestamp` and no `DateTime`; source
+  `primary_key`/`site_id` are carried unchanged (type and values, never
+  synthesized; gap rows keep the uniform group `site_id`, a null
+  `primary_key` and missing measurements); literal duplicates are resolved
+  with the humidity policy before ordering; gold uses the lineage-CSV
+  `gold_derived` names (`GOLD_DERIVED_RENAME`: `NEE_f -> nee_f`,
+  `NEE_fqc -> nee_fqc`, `Rg_f -> sw_in_f`, `Tair_f -> ta_f`,
+  `VPD_f -> vpd_f`) plus `dateAndTime`, drops internal passthroughs whose
+  source-facing name is present and keeps every silver column. The file
+  contract is [`docs/PARQUET_FILE_SCHEMA.md`](docs/PARQUET_FILE_SCHEMA.md).
+- `prepare_silver_stage_payload` / `prepare_gold_stage_payload` (=
+  `derive_gold_stage_columns` then `finalize_gold_stage_payload`): the
+  older stage-table payload shape with a synthesized
+  `(primary_key = <site_id>|<UTC second>, site_id, timestamp)` identity
+  triple. They remain as pure helpers with their historical behavior; the
+  file workflow does not use them because C1 requires source identity to be
+  carried unchanged.
+
+M002-S04 removed the BigQuery transport (`miaproc.eddy.bigquery_runner`,
+`miaproc.eddy.bigquery_writeback`, their re-exports from `miaproc.eddy`,
+the `bigquery` install extra and the `eddy run-bigquery*` commands). No
+backend, scientific default or payload rule changed with that removal.
+
+## Storage and CLI Contract (M002)
+
+The CLI stage commands keep their names and engine/site/time/group
+arguments; storage is ordinary local or mounted file paths:
+
+- Inputs: CSV directories (`--flux-dir`/`--biomet-dir`, legacy
+  compatibility) or exactly one explicit Parquet file per side
+  (`--flux-parquet`/`--biomet-parquet`, `.parquet`/`.pq`, read with PyArrow).
+  Gold reads `--silver-table` (`.csv` or one Parquet file). URI schemes such
+  as `gs://` or `s3://` are rejected; mount the storage and pass the path.
+  Inputs are never modified.
+- Outputs: `.parquet`/`.pq` writes the source-facing contract
+  ([`docs/PARQUET_FILE_SCHEMA.md`](docs/PARQUET_FILE_SCHEMA.md)); `.csv`
+  keeps the legacy CSV shape (D014).
+- Publication ([`docs/RUN_PUBLICATION.md`](docs/RUN_PUBLICATION.md)): each
+  `run-silver`/`run-gold` invocation owns one fresh `--run-dir`; artifacts
+  are staged in bounded local scratch, copied sequentially with checked
+  close, and the completion manifest `_MIAPROC_RUN_COMPLETE.json` is written
+  last. The valid manifest is the publication point. `run-gold` validates
+  the silver run's manifest; `miaproc eddy validate-run --run-dir DIR
+  [--stage silver|gold]` is the consumer check. A legacy CSV silver without
+  a manifest needs `--allow-legacy-silver-csv`.
+- Exit codes: `0` success; `2` `reddyproc-reference` preflight not
+  project-scoped approved (also argparse usage errors); `3` input/config
+  validation, run-directory reuse/overlap/traversal, incomplete or
+  mismatched silver run, and any removed BigQuery command or flag; `4`
+  runtime processing failure, including any publication fault before the
+  manifest; `5` the manifest was written but the finish could not be
+  confirmed (the run is published and never deleted; decide with
+  `validate-run`).
+- Input windows, rerun scheduling and any loading of results into a
+  warehouse are caller/orchestrator-owned; see
+  [`docs/MIGRATING_FROM_BIGQUERY.md`](docs/MIGRATING_FROM_BIGQUERY.md).
+
 ## Compatibility
 
 Exact equality between `reddyproc-rpy2` and `hesseflux` outputs is not required.

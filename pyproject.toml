@@ -13,6 +13,8 @@ authors = [{name = "Julián Equihua"}]
 dependencies = [
   "numpy>=1.24",
   "pandas>=2.0,<3.0",
+  # Parquet engine for the eddy file workflow (silver/gold tables).
+  "pyarrow>=14",
 ]
 
 [project.scripts]
@@ -29,19 +31,8 @@ hesseflux = [
   "hesseflux>=5.0",
 ]
 
-biomass = [
-  "pyarrow>=14",
-]
-
 reddyproc = [
   "rpy2",
-]
-
-bigquery = [
-  "google-cloud-bigquery>=3.20",
-  "google-cloud-bigquery-storage>=2.24",
-  "db-dtypes>=1.2",
-  "pyarrow>=14",
 ]
 
 [tool.setuptools]
@@ -49,9 +40,6 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-"miaproc.biomass" = ["data/*.parquet"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

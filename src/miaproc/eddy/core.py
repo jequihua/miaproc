@@ -95,7 +95,7 @@ def stage1_from_raw_frames(
 
     This is the shared post-ingestion path used by both ``load_stage1``
     (file/CSV-directory ingestion) and ``load_stage1_from_dataframes``
-    (in-memory DataFrame ingestion, e.g. BigQuery-native mode). The
+    (in-memory DataFrame ingestion, e.g. explicit Parquet inputs). The
     behavior is the same for both ingestion modes: site filtering,
     legacy unit-row drop, ``u_star`` → ``u.`` alias resolution, DateTime
     construction, rename, biomet key selection + left join, unit
@@ -112,7 +112,7 @@ def stage1_from_raw_frames(
     full_output = _apply_site_filter(full_output, side="flux", site_id=site_id)
     biomet = _apply_site_filter(biomet, side="biomet", site_id=site_id)
 
-    # --- Drop unit rows (legacy CSV concern; no-op for BigQuery-shaped data) ---
+    # --- Drop unit rows (legacy CSV concern; no-op for typed Parquet data) ---
     full_output = drop_unit_rows(full_output)
     biomet = drop_unit_rows(biomet)
 
@@ -255,7 +255,7 @@ def load_stage1_from_dataframes(
     Same scientific contract as :func:`load_stage1`, but consumes
     pre-loaded pandas DataFrames instead of CSV directories. Intended
     for cloud/local orchestration paths that read the flux and biomet
-    inputs directly (for example BigQuery-native mode, M7) without
+    inputs directly (for example explicit Parquet files, M002) without
     round-tripping through synthetic CSV files.
 
     The input frames are expected to carry the case-study column shape:

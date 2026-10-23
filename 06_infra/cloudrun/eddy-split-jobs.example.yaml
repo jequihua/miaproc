@@ -1,23 +1,30 @@
-﻿# Eddy silver dry-run (recommended first validation mode). Reads BigQuery and
-# writes local M32A source-truth payload artifacts only (stage_payload.csv +
-# stage_payload_metadata.json). No BigQuery write, validation SQL, MERGE, or
-# watermark advancement. The dry-run `columns` should carry source-truth names
-# (timestamp, co2_flux, qc_co2_flux, air_temperature_c, u_star, VPD_hpa,
-# SWIN_1_1_1, P_RAIN_1_1_1, RH_1_1_1, and flux-side RH when present) and no
-# internal-name passthroughs (DateTime, NEE, QC_NEE, Tair, USTAR, VPD, Rg,
-# P_RAIN, rH).
+﻿# EXAMPLE ONLY - not deployed, not qualified. Placeholders in <...> must be
+# replaced by the deploying team, who also own IAM, bucket layout, the
+# Cloud Storage FUSE volume options, resource sizing and scheduling. Check the
+# field names against the current Cloud Run Jobs documentation before use.
+#
+# File-based eddy silver job. Reads ONE immutable flux and ONE immutable biomet
+# Parquet file from a read-only input mount and publishes a fresh run directory
+# on a writable output mount (completion manifest written last; see
+# docs/RUN_PUBLICATION.md). miaproc uses no cloud SDK, credentials or network
+# for data processing. <SILVER_RUN> must be unique per execution and never
+# reused, also after a failure (e.g. silver-<SITE_OR_ALL>-<WINDOW>-<ATTEMPT>);
+# the orchestrator renders a new job execution (or arg override) per attempt.
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
-  name: miaproc-eddy-silver-dry-run-example
+  name: miaproc-eddy-silver-example
   namespace: <PROJECT_ID>
   labels:
     app: miaproc
     domain: eddy
-    stage: silver-dry-run
+    stage: silver
     example: "true"
 spec:
   template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
     spec:
       parallelism: 1
       taskCount: 1
@@ -28,102 +35,65 @@ spec:
           timeoutSeconds: 1800
           containers:
           - name: miaproc
-            image: <IMAGE_URI>
+            image: <IMAGE_URI_PINNED_BY_DIGEST>
             command: ["miaproc"]
             args:
             - eddy
-            - run-bigquery-silver
-            - --bq-input-project=<INPUT_PROJECT>
-            - --bq-input-dataset=<INPUT_DATASET>
-            - --bq-flux-table=<FLUX_TABLE>
-            - --bq-biomet-table=<BIOMET_TABLE>
-            - --bq-billing-project=<BILLING_PROJECT>
+            - run-silver
+            - --flux-parquet=/mnt/in/<WINDOW>/flux.parquet
+            - --biomet-parquet=/mnt/in/<WINDOW>/biomet.parquet
             - --group-column=site_id
-            - --bq-output-project=<OUTPUT_PROJECT>
-            - --bq-output-dataset=<OUTPUT_DATASET>
-            - --bq-stage-table=<SILVER_STAGE_TABLE>
-            - --bq-control-dataset=<CONTROL_DATASET>
-            - --stage-payload-dry-run-dir=/tmp/silver_dry_run
-            - --output-table=/tmp/silver.parquet
-            - --output-run-json=/tmp/silver_run.json
-            env:
-            - name: GOOGLE_CLOUD_PROJECT
-              value: <BILLING_PROJECT>
+            - --run-dir=/mnt/out/<SILVER_RUN>
+            - --output-table=/mnt/out/<SILVER_RUN>/silver.parquet
+            - --output-run-json=/mnt/out/<SILVER_RUN>/silver_run.json
+            - --scratch-dir=/tmp/miaproc-scratch
+            - --scratch-max-bytes=<SCRATCH_BYTES>
+            volumeMounts:
+            - name: eddy-in
+              mountPath: /mnt/in
+              readOnly: true
+            - name: eddy-out
+              mountPath: /mnt/out
             resources:
               limits:
                 cpu: "2"
                 memory: 4Gi
+          volumes:
+          - name: eddy-in
+            csi:
+              driver: gcsfuse.run.googleapis.com
+              readOnly: true
+              volumeAttributes:
+                bucketName: <INPUT_BUCKET>
+          - name: eddy-out
+            csi:
+              driver: gcsfuse.run.googleapis.com
+              readOnly: false
+              volumeAttributes:
+                bucketName: <OUTPUT_BUCKET>
 ---
-# Eddy silver writeback. Mutates the silver stage/control tables. Run only
-# after the dry-run job above has been accepted. Produces an M32A source-truth
-# silver payload (single `timestamp`, no `DateTime`).
+# File-based eddy gold job (R-backed reference engine). Reads the table of a
+# PUBLISHED silver run (miaproc validates the silver run's completion manifest
+# before any engine work) and publishes a fresh gold run directory. Start it
+# only after `miaproc eddy validate-run --run-dir /mnt/out/<SILVER_RUN>
+# --stage silver` succeeded. --repo-root=/app lets the project-scoped R
+# preflight (Decision 010) resolve the baked renv.lock and R library; without
+# approval the job exits 2. Use --engine=hesseflux-native for a Python-only run.
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
-  name: miaproc-eddy-silver-writeback-example
+  name: miaproc-eddy-gold-example
   namespace: <PROJECT_ID>
   labels:
     app: miaproc
     domain: eddy
-    stage: silver-writeback
+    stage: gold
     example: "true"
 spec:
   template:
-    spec:
-      parallelism: 1
-      taskCount: 1
-      template:
-        spec:
-          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
-          maxRetries: 0
-          timeoutSeconds: 1800
-          containers:
-          - name: miaproc
-            image: <IMAGE_URI>
-            command: ["miaproc"]
-            args:
-            - eddy
-            - run-bigquery-silver
-            - --bq-input-project=<INPUT_PROJECT>
-            - --bq-input-dataset=<INPUT_DATASET>
-            - --bq-flux-table=<FLUX_TABLE>
-            - --bq-biomet-table=<BIOMET_TABLE>
-            - --bq-billing-project=<BILLING_PROJECT>
-            - --group-column=site_id
-            - --bq-output-project=<OUTPUT_PROJECT>
-            - --bq-output-dataset=<OUTPUT_DATASET>
-            - --bq-stage-table=<SILVER_STAGE_TABLE>
-            - --bq-control-dataset=<CONTROL_DATASET>
-            - --output-table=/tmp/silver.parquet
-            - --output-run-json=/tmp/silver_run.json
-            env:
-            - name: GOOGLE_CLOUD_PROJECT
-              value: <BILLING_PROJECT>
-            resources:
-              limits:
-                cpu: "2"
-                memory: 4Gi
----
-# Eddy gold dry-run (recommended first validation mode). Reads an M32A
-# source-truth silver table, reconstructs internal DateTime from `timestamp`
-# to drive the selected backend, and writes local M32A source-truth payload
-# artifacts only. No BigQuery write, validation SQL, MERGE, or watermark
-# advancement. The dry-run `columns` should carry source-truth silver columns
-# preserved into gold plus gold-only outputs (nee_f, nee_fqc, sw_in_f, ta_f,
-# vpd_f, GPP, Reco, dateAndTime) and a single `timestamp` (no internal
-# `DateTime`).
-apiVersion: run.googleapis.com/v1
-kind: Job
-metadata:
-  name: miaproc-eddy-gold-dry-run-example
-  namespace: <PROJECT_ID>
-  labels:
-    app: miaproc
-    domain: eddy
-    stage: gold-dry-run
-    example: "true"
-spec:
-  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
     spec:
       parallelism: 1
       taskCount: 1
@@ -134,51 +104,55 @@ spec:
           timeoutSeconds: 3600
           containers:
           - name: miaproc
-            image: <IMAGE_URI>
+            image: <IMAGE_URI_PINNED_BY_DIGEST>
             command: ["miaproc"]
             args:
             - eddy
-            - run-bigquery-gold
+            - run-gold
+            - --silver-table=/mnt/out/<SILVER_RUN>/silver.parquet
             - --engine=reddyproc-reference
-            - --bq-input-project=<OUTPUT_PROJECT>
-            - --bq-input-dataset=<OUTPUT_DATASET>
-            - --bq-silver-table=<SILVER_STAGE_OR_FINAL_TABLE>
-            - --bq-billing-project=<BILLING_PROJECT>
-            - --group-column=site_id
             - --repo-root=/app
-            - --bq-output-project=<OUTPUT_PROJECT>
-            - --bq-output-dataset=<OUTPUT_DATASET>
-            - --bq-stage-table=<GOLD_STAGE_TABLE>
-            - --bq-final-table=<GOLD_FINAL_TABLE>
-            - --bq-control-dataset=<CONTROL_DATASET>
-            - --bq-allow-final-merge
-            - --stage-payload-dry-run-dir=/tmp/gold_dry_run
-            - --output-table=/tmp/gold.parquet
-            - --output-diagnostics-json=/tmp/gold_diag.json
-            - --output-run-json=/tmp/gold_run.json
-            env:
-            - name: GOOGLE_CLOUD_PROJECT
-              value: <BILLING_PROJECT>
+            - --group-column=site_id
+            - --run-dir=/mnt/out/<GOLD_RUN>
+            - --output-table=/mnt/out/<GOLD_RUN>/gold.parquet
+            - --output-diagnostics-json=/mnt/out/<GOLD_RUN>/gold_diag.json
+            - --output-run-json=/mnt/out/<GOLD_RUN>/gold_run.json
+            - --scratch-dir=/tmp/miaproc-scratch
+            - --scratch-max-bytes=<SCRATCH_BYTES>
+            volumeMounts:
+            - name: eddy-out
+              mountPath: /mnt/out
             resources:
               limits:
                 cpu: "2"
                 memory: 8Gi
+          volumes:
+          - name: eddy-out
+            csi:
+              driver: gcsfuse.run.googleapis.com
+              readOnly: false
+              volumeAttributes:
+                bucketName: <OUTPUT_BUCKET>
 ---
-# Eddy gold stage-only writeback. Mutates gold stage/control tables, but does
-# not MERGE final. Run only after the gold dry-run job above has been
-# accepted. Produces an M32A source-truth gold stage payload.
+# Consumer check job. Exit 0 prints a JSON summary of a valid run; an
+# incomplete or mismatched run exits 3. Decide with this check, never with the
+# producer's exit code alone (exit 5 or an unknown status can coexist with a
+# valid published run). <STAGE> is silver or gold.
 apiVersion: run.googleapis.com/v1
 kind: Job
 metadata:
-  name: miaproc-eddy-gold-stage-example
+  name: miaproc-eddy-validate-run-example
   namespace: <PROJECT_ID>
   labels:
     app: miaproc
     domain: eddy
-    stage: gold-stage
+    stage: validate
     example: "true"
 spec:
   template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
     spec:
       parallelism: 1
       taskCount: 1
@@ -186,86 +160,28 @@ spec:
         spec:
           serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
           maxRetries: 0
-          timeoutSeconds: 3600
+          timeoutSeconds: 600
           containers:
           - name: miaproc
-            image: <IMAGE_URI>
+            image: <IMAGE_URI_PINNED_BY_DIGEST>
             command: ["miaproc"]
             args:
             - eddy
-            - run-bigquery-gold
-            - --engine=reddyproc-reference
-            - --bq-input-project=<OUTPUT_PROJECT>
-            - --bq-input-dataset=<OUTPUT_DATASET>
-            - --bq-silver-table=<SILVER_STAGE_OR_FINAL_TABLE>
-            - --bq-billing-project=<BILLING_PROJECT>
-            - --group-column=site_id
-            - --repo-root=/app
-            - --bq-output-project=<OUTPUT_PROJECT>
-            - --bq-output-dataset=<OUTPUT_DATASET>
-            - --bq-stage-table=<GOLD_STAGE_TABLE>
-            - --bq-control-dataset=<CONTROL_DATASET>
-            - --output-table=/tmp/gold.parquet
-            - --output-diagnostics-json=/tmp/gold_diag.json
-            - --output-run-json=/tmp/gold_run.json
-            env:
-            - name: GOOGLE_CLOUD_PROJECT
-              value: <BILLING_PROJECT>
+            - validate-run
+            - --run-dir=/mnt/out/<RUN_TO_CHECK>
+            - --stage=<STAGE>
+            volumeMounts:
+            - name: eddy-out
+              mountPath: /mnt/out
+              readOnly: true
             resources:
               limits:
-                cpu: "2"
-                memory: 8Gi
----
-# Eddy gold explicit merge. Mutates gold stage/control/final tables. Run only
-# after the gold stage-only writeback has been accepted. Produces an M32A
-# source-truth gold final payload (single `timestamp`, no `DateTime`).
-apiVersion: run.googleapis.com/v1
-kind: Job
-metadata:
-  name: miaproc-eddy-gold-merge-example
-  namespace: <PROJECT_ID>
-  labels:
-    app: miaproc
-    domain: eddy
-    stage: gold-merge
-    example: "true"
-spec:
-  template:
-    spec:
-      parallelism: 1
-      taskCount: 1
-      template:
-        spec:
-          serviceAccountName: <SERVICE_ACCOUNT_EMAIL>
-          maxRetries: 0
-          timeoutSeconds: 3600
-          containers:
-          - name: miaproc
-            image: <IMAGE_URI>
-            command: ["miaproc"]
-            args:
-            - eddy
-            - run-bigquery-gold
-            - --engine=reddyproc-reference
-            - --bq-input-project=<OUTPUT_PROJECT>
-            - --bq-input-dataset=<OUTPUT_DATASET>
-            - --bq-silver-table=<SILVER_STAGE_OR_FINAL_TABLE>
-            - --bq-billing-project=<BILLING_PROJECT>
-            - --group-column=site_id
-            - --repo-root=/app
-            - --bq-output-project=<OUTPUT_PROJECT>
-            - --bq-output-dataset=<OUTPUT_DATASET>
-            - --bq-stage-table=<GOLD_STAGE_TABLE>
-            - --bq-final-table=<GOLD_FINAL_TABLE>
-            - --bq-control-dataset=<CONTROL_DATASET>
-            - --bq-allow-final-merge
-            - --output-table=/tmp/gold.parquet
-            - --output-diagnostics-json=/tmp/gold_diag.json
-            - --output-run-json=/tmp/gold_run.json
-            env:
-            - name: GOOGLE_CLOUD_PROJECT
-              value: <BILLING_PROJECT>
-            resources:
-              limits:
-                cpu: "2"
-                memory: 8Gi
+                cpu: "1"
+                memory: 2Gi
+          volumes:
+          - name: eddy-out
+            csi:
+              driver: gcsfuse.run.googleapis.com
+              readOnly: true
+              volumeAttributes:
+                bucketName: <OUTPUT_BUCKET>

@@ -188,8 +188,8 @@ class TestRegularizedGapRowsTimestampM35A:
         # Regularized rows must still be present, not dropped.
         assert len(silver) == 8
         # Apply the M32A source-truth rename and build the silver
-        # stage payload, exactly the path the silver BigQuery
-        # writeback runs.
+        # stage payload with the neutral payload helper (the path the
+        # former BigQuery silver writeback ran; M002-S04 removed it).
         silver_st = apply_silver_source_truth_rename(silver)
         payload, _actions = prepare_silver_stage_payload(
             silver_st,
@@ -225,7 +225,7 @@ class TestRegularizedGapRowsTimestampM35A:
             "VPD", "Rg", "P_RAIN", "rH",
         ):
             assert leak not in payload.columns, (leak, payload.columns)
-        # Case-insensitive BigQuery field-key uniqueness.
+        # Case-insensitive field-key uniqueness.
         keys = [c.casefold() for c in payload.columns]
         assert len(set(keys)) == len(keys), payload.columns
 

@@ -8,12 +8,11 @@
 #   scripts/bash/deploy_cloud_run_job.sh <manifest> [--execute]
 #
 # Examples:
-#   scripts/bash/deploy_cloud_run_job.sh \
-#     06_infra/cloudrun/miaproc-eddy-rbrl-stage.yaml --execute
-#   scripts/bash/deploy_cloud_run_job.sh \
-#     06_infra/cloudrun/miaproc-eddy-rbrl-merge.yaml
+#   scripts/bash/deploy_cloud_run_job.sh my-silver-job.yaml --execute
 #
-# The merge manifest mutates the staging final table; deploy and
+# Each manifest is one engineer-reviewed job split out of
+# ``06_infra/cloudrun/eddy-split-jobs.example.yaml`` (file-based silver /
+# gold / validate-run jobs; no BigQuery since M002-S04). Deploy and
 # execute are kept as separate operator decisions on purpose.
 set -euo pipefail
 

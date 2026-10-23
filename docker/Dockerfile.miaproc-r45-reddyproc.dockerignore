@@ -1,0 +1,13 @@
+# BuildKit reads this file for Dockerfile.miaproc-r45-reddyproc only.
+# Keep host interpreter caches, editable-install metadata and build output
+# out of the image so the context is the tracked package content.
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+build
+dist
+.venv
+.runs

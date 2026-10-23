@@ -1,0 +1,2082 @@
+{
+  "schema": "miaproc-retired-tests-v1",
+  "about": "Reviewable retirement record for frozen M001-S01 test ids (01_data/baseline/test_ids_portable.json and the frozen live-R ids). A frozen id may stop being collected only when it is listed here with the retiring slice id, a reason, and optional replacement node ids; 06_infra/verification/pytest_guard.py requires each named replacement to be collected and pass, rejects entries for ids that are not frozen or are still collected, and rejects any other missing frozen id.",
+  "example": {
+    "node_id": "tests/test_module.py::TestClass::test_name",
+    "slice": "M001-S02",
+    "reason": "biomass-only behaviour removed by the slice",
+    "replacements": []
+  },
+  "retired": [
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestBigQueryBiomassConfig::test_default_billing_project_falls_back_to_input",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestBigQueryBiomassConfig::test_default_row_limit_is_none",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestBigQueryBiomassConfig::test_default_storage_api_enabled",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestBigQueryBiomassConfig::test_explicit_billing_project_overrides_input",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestBigQueryBiomassConfig::test_input_table_fqn_uses_backticks",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestQueryBuilder::test_build_input_query_appends_limit_when_set",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestQueryBuilder::test_build_input_query_no_limit_by_default",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestQueryBuilder::test_build_input_query_uses_fully_qualified_name",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestQueryBuilder::test_no_site_id_filter_at_query_layer",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestReadBigQueryInput::test_normalize_dataframe_coerces_extension_dtypes",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestReadBigQueryInput::test_returns_read_result_with_expected_shape",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_runner.py::TestReadBigQueryInput::test_row_limit_propagates_to_sql",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery forest-structure reader removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_billing_project_falls_back_to_output",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_default_merge_key_is_primary_key",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_explicit_billing_project_overrides",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_final_table_fqn_returns_none_when_unset",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_fqn_helpers_render_backticks",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_no_watermark_table_attribute",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_runs_table_default_is_cf_biomass_runs",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_passes_for_explicit_merge_config",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_passes_for_minimal_stage_only_config",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_rejects_allow_merge_without_final_table",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_rejects_empty_control_dataset",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_rejects_empty_merge_key",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_rejects_empty_output_dataset",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_rejects_empty_stage_table",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestConfigValidation::test_validate_rejects_forbidden_output_project",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_merge_statement_rejects_missing_final_table",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_merge_statement_rejects_missing_merge_key_in_columns",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_merge_statement_uses_merge_key",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_merge_statement_with_overridden_key",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_runs_ddl_contains_biomass_specific_columns",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_runs_table_ddl_creates_only_one_table",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_validation_query_honors_overridden_merge_key",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestDDLAndSQL::test_validation_query_uses_configured_merge_key",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestNoWatermarkSurface::test_module_exposes_no_watermark_symbols",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestNoWatermarkSurface::test_writeback_result_has_no_watermark_fields",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestPrepareStage::test_does_not_mutate_input",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestPrepareStage::test_passes_through_when_merge_key_present",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestPrepareStage::test_passes_through_when_overridden_merge_key_present",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestPrepareStage::test_raises_when_merge_key_missing",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestRunWritebackGenericFailure::test_load_failure_records_failed_and_reraises",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestRunWritebackMerge::test_explicit_merge_records_succeeded_and_merge_counts",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestRunWritebackStageOnly::test_stage_only_default_records_stage_only_succeeded",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_bigquery_writeback.py::TestRunWritebackValidationFailure::test_validation_failure_raises_and_records_status",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass BigQuery stage/MERGE/cf_biomass_runs writeback removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestAdultLifeStageGate::test_adult_dbh_present_height_missing_succeeds_for_dina",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestAdultLifeStageGate::test_adult_token_is_case_insensitive_and_whitespace_tolerant",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestAdultLifeStageGate::test_juvenile_life_stage_blocks_direct_biomass",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestAdultLifeStageGate::test_missing_dbh_blocks_direct_biomass",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestAdultLifeStageGate::test_missing_life_stage_blocks_direct_biomass",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestBiomassColumnsDefaults::test_default_field_names_match_forest_data_schema",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestBiomassColumnsDefaults::test_field_names_are_overridable",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestDinaRowsPresent::test_dina_record_ids_are_dina_001_to_dina_004",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestDinaRowsPresent::test_dina_rows_carry_wd_fixed_expression",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestDinaRowsPresent::test_dina_rows_have_no_state_or_assignment_level",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestDinaRowsPresent::test_dina_species_are_the_four_mangrove_species",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestDinaRowsPresent::test_exactly_four_dina_rows",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestExpressionSelection::test_all_four_dina_species_evaluate",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestExpressionSelection::test_dina_uses_wd_fixed_expression",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestHeightPathReserved::test_custom_height_column_name",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestHeightPathReserved::test_height_passed_through_when_present",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestHeightPathReserved::test_volume_path_still_requires_height",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestLegacyOutputAliases::test_legacy_keys_populated_alongside_new_keys",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_alias_map_contains_both_known_typos_only",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_null_species_remains_honest_failure",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_typo_resolves_through_estimate_tree_with_adult_dbh",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_typo_rizophora_mangle_resolves_to_dina_002",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_typo_rizophora_manlge_resolves_to_dina_002",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_typo_with_juvenile_life_stage_still_classifies_not_adult",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_typo_with_missing_dbh_still_classifies_dbh_missing",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_typo_with_trailing_whitespace_resolves",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17ASpeciesAliases::test_unknown_species_still_returns_no_equation_found",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17TraceabilityFields::test_estimate_tree_returns_source_record_id",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestM17TraceabilityFields::test_estimate_trees_appends_source_record_id_column",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestMatchEquation::test_dataset_filter_excludes_volume_rows",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestMatchEquation::test_estado_legacy_alias_routes_to_state",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestMatchEquation::test_match_dina_row_via_species",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestMatchEquation::test_match_falls_back_to_any_state_for_dina",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestPackagedDefault::test_default_filename_is_unified_parquet",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestPackagedDefault::test_legacy_parquet_still_loadable_by_explicit_filename",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestPackagedDefault::test_load_equations_default_uses_packaged",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_biomass_dina.py::TestPackagedDefault::test_load_packaged_equations_returns_unified_parquet",
+      "slice": "M001-S02",
+      "reason": "biomass-only: miaproc.biomass allometric-equation API (dina/infys equations, packaged equation assets) removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestArgParsing::test_defaults_match_enrich_table",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestArgParsing::test_help_exits_zero",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestArgParsing::test_required_flags_missing_exits",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestCLIEndToEnd::test_bigquery_read_to_csv_default_dina",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestCLIEndToEnd::test_billing_project_override",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestCLIEndToEnd::test_mixed_eligibility_preserves_rows",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestCLIEndToEnd::test_no_storage_api_propagates",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestCLIEndToEnd::test_parquet_output",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestCLIEndToEnd::test_row_limit_propagates_to_cfg_and_run_json",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestFailurePaths::test_invalid_row_limit_negative_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestFailurePaths::test_invalid_row_limit_zero_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestFailurePaths::test_output_column_collision_with_input",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestFailurePaths::test_runtime_failure_returns_four",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestFailurePaths::test_same_output_column_name_twice_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestFailurePaths::test_unsupported_output_extension_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_allow_final_merge_requires_final_table",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_allow_final_merge_without_stage_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_default_no_writeback_flags_are_present",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_output_project_must_differ_from_input",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_partial_writeback_config_without_stage_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_writeback_engaged_requires_control_dataset",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_writeback_engaged_requires_output_dataset",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackFlagValidation::test_writeback_engaged_requires_output_project",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackHandlerIntegration::test_explicit_merge_writeback_passes_allow_flag",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackHandlerIntegration::test_overridden_merge_key_propagates",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackHandlerIntegration::test_stage_only_writeback_records_in_run_json",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_bigquery.py::TestM20WritebackHandlerIntegration::test_writeback_failure_records_failed_in_run_json_and_returns_four",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass run-bigquery' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIArgParsing::test_default_dataset_is_dina",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIArgParsing::test_help_exits_zero",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIArgParsing::test_required_flags_missing_exits",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIEndToEnd::test_custom_output_column_names_via_cli",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIEndToEnd::test_enrich_csv_to_csv_default_dina",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIEndToEnd::test_enrich_parquet_to_parquet",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIEndToEnd::test_input_column_overrides",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIEndToEnd::test_mixed_eligibility_preserves_all_rows",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIFailurePaths::test_missing_input_table_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIFailurePaths::test_output_column_collision_exits_four",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIFailurePaths::test_same_output_column_name_twice_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIFailurePaths::test_unsupported_input_extension_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestCLIFailurePaths::test_unsupported_output_extension_exits_three",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_appends_exactly_two_columns_in_order",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_biomass_estimate_matches_wd_fixed_expression",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_collision_with_input_column_raises",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_custom_output_column_names",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_default_output_column_names_are_biomass_estimate_and_equation_used",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_equation_used_matches_source_record_id_for_matched_rows",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_ineligible_rows_preserved_with_nan_estimate",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_row_count_and_order_preserved",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_biomass_enrich_table.py::TestEnrichTableHelper::test_same_output_column_name_twice_raises",
+      "slice": "M001-S02",
+      "reason": "biomass-only: 'miaproc biomass enrich-table' CLI command removed by M001-S02",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestQueryBuilders::test_billing_project_falls_back_to_input",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery SELECT/window query builders and billing-project defaults (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestQueryBuilders::test_biomet_query_uses_biomet_table",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery SELECT/window query builders and billing-project defaults (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestQueryBuilders::test_flux_query_uses_fully_qualified_name_and_site_filter",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery SELECT/window query builders and billing-project defaults (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestQueryBuilders::test_only_start_window_renders_only_start_clause",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery SELECT/window query builders and billing-project defaults (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestQueryBuilders::test_window_clauses_added_when_set",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery SELECT/window query builders and billing-project defaults (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestReadBigQueryInputs::test_missing_bq_dependency_raises_actionable_error",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery client read, install hint, result normalization and query metadata (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestReadBigQueryInputs::test_normalize_converts_nullable_dtypes_to_numpy",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery client read, install hint, result normalization and query metadata (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestReadBigQueryInputs::test_returns_dataframes_and_records_queries",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery client read, install hint, result normalization and query metadata (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_runner.py::TestReadBigQueryInputs::test_window_parameters_propagate_into_metadata",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery client read, install hint, result normalization and query metadata (miaproc.eddy.bigquery_runner) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestConfigValidation::test_allow_final_merge_requires_final_table",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback config validation (output/forbidden projects, final-table MERGE authorization) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestConfigValidation::test_empty_required_fields_rejected",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback config validation (output/forbidden projects, final-table MERGE authorization) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestConfigValidation::test_forbidden_production_project_rejected",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback config validation (output/forbidden projects, final-table MERGE authorization) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestConfigValidation::test_valid_config_passes_validate",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback config validation (output/forbidden projects, final-table MERGE authorization) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_caller_frame_not_mutated",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_caller_frame_not_mutated"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_divergent_rH_duplicate_renamed_to_rH_norm_s",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_divergent_rH_duplicate_renamed_to_rH_norm_s"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_divergent_rH_with_existing_rH_norm_s_uses_suffix",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_divergent_rH_with_existing_rH_norm_s_uses_suffix"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_equivalent_rH_duplicate_is_suppressed",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_equivalent_rH_duplicate_is_suppressed"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_nan_aware_equivalence_treats_paired_nans_as_equal",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_nan_aware_equivalence_treats_paired_nans_as_equal"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_other_duplicate_raises_duplicate_stage_columns_error",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_other_duplicate_raises_duplicate_stage_columns_error"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumns::test_unique_input_is_no_op",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumns::test_unique_input_is_no_op"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_bigquery_field_key_is_casefold",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_column_field_key_is_casefold"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_existing_rH_norm_s_still_uses_suffix_under_case_insensitivity",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_existing_rH_norm_s_still_uses_suffix_under_case_insensitivity"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_multiple_non_humidity_case_collisions_all_reported",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_multiple_non_humidity_case_collisions_all_reported"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_non_humidity_case_insensitive_collision_raises",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_non_humidity_case_insensitive_collision_raises"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_payload_has_no_case_insensitive_duplicate_keys",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_payload_has_no_case_insensitive_duplicate_keys"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_rh_case_collision_divergent_keeps_rH_and_rH_norm_s",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_rh_case_collision_divergent_keeps_rH_and_rH_norm_s"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_rh_case_collision_equivalent_collapses_to_canonical_rH",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_rh_case_collision_equivalent_collapses_to_canonical_rH"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_three_way_humidity_collision_canonicalizes_and_suffixes",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestEnsureUniqueStageColumnsCaseInsensitiveM31::test_three_way_humidity_collision_canonicalizes_and_suffixes"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestMergeStageIntoFinal::test_merge_refused_without_explicit_authorization",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: final-table MERGE execution removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestMergeStageIntoFinal::test_merge_uses_stage_schema_and_returns_counts",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: final-table MERGE execution removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_caller_frame_not_mutated",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_caller_frame_not_mutated"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_divergent_rH_duplicate_renamed_to_rH_norm_s",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_divergent_rH_duplicate_renamed_to_rH_norm_s"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_equivalent_rH_duplicate_suppressed",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_equivalent_rH_duplicate_suppressed"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_identity_triple_overwrite_recorded_in_actions",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_identity_triple_overwrite_recorded_in_actions"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_missing_datetime_raises",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_missing_datetime_raises"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_payload_columns_are_unique",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_payload_columns_are_unique"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_preserves_bronze_sentinel_column",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_preserves_bronze_sentinel_column"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayload::test_source_flux_with_duplicate_columns_raises",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayload::test_source_flux_with_duplicate_columns_raises"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayloadCaseInsensitiveM31::test_divergent_RH_and_rH_preserved_separately_under_m32",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayloadCaseInsensitiveM31::test_divergent_RH_and_rH_preserved_separately_under_m32"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareSilverStagePayloadCaseInsensitiveM31::test_equivalent_RH_and_rH_kept_separately_under_m32",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04; bigquery_field_key is now column_field_key)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestPrepareSilverStagePayloadCaseInsensitiveM31::test_equivalent_RH_and_rH_kept_separately_under_m32"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframe::test_caller_frames_are_not_mutated",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayload::test_caller_frames_are_not_mutated"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframe::test_lowercase_analytical_columns_and_dateAndTime",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayload::test_lowercase_analytical_columns_and_dateAndTime"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframe::test_missing_datetime_raises",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayload::test_missing_datetime_raises"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframe::test_source_primary_key_preferred_over_synthesized",
+      "slice": "M002-S04",
+      "reason": "BigQuery source-flux join removed by M002-S04; the source-identity assertions (source primary_key kept on matched rows, gap row with valid timestamp, uniform site_id and missing source measurements) are kept on the file-workflow gold payload, and the synthesized gap-row identity of the neutral gold payload stays covered in test_eddy_payload.py",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestLocalGoldSourceIdentity::test_source_primary_key_carried_and_gap_row_measurements_missing[string_keys]",
+        "tests/test_m002_s04_payload_regressions.py::TestLocalGoldSourceIdentity::test_source_primary_key_carried_and_gap_row_measurements_missing[int64_keys_above_2_53]",
+        "tests/test_eddy_payload.py::test_gold_payload_gap_rows_get_identity_and_keep_missing_values"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframe::test_target_columns_filter_drops_extras_keeps_identity",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: final-table target-column filter of prepare_stage_dataframe removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframe::test_target_types_cast_float_to_nullable_int",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: cast to BigQuery target-table column types (INT64) before the stage write removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframeM28Preservation::test_collision_actions_recorded_in_attrs",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayloadM28Preservation::test_collision_actions_recorded_in_attrs"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframeM28Preservation::test_legacy_filter_still_works_when_preserve_false",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: legacy final-table target-column filter (preserve_payload_columns=False) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframeM28Preservation::test_other_duplicate_raises_before_load",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayloadM28Preservation::test_other_duplicate_raises_before_load"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframeM28Preservation::test_preserves_silver_only_columns_when_preserve_true",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayloadM28Preservation::test_preserves_silver_only_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframeS2FiltOneMappingM31::test_lowercase_targets_present_uppercase_backend_names_dropped",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayloadLowercaseMappingM31::test_lowercase_targets_present_uppercase_backend_names_dropped"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestPrepareStageDataframeS2FiltOneMappingM31::test_values_carry_through_rename",
+      "slice": "M002-S04",
+      "reason": "neutral gold assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload.prepare_gold_stage_payload (prepare_stage_dataframe without the BigQuery-only join/filter/cast, removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestGoldStagePayloadLowercaseMappingM31::test_values_carry_through_rename"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestRunWriteback::test_explicit_merge_runs_merge_and_advances_watermark",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback orchestration (stage write, validation SQL, MERGE, run-table records, watermark advance) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestRunWriteback::test_failed_merge_attaches_writeback_state_to_exception",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback orchestration (stage write, validation SQL, MERGE, run-table records, watermark advance) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestRunWriteback::test_forbidden_project_rejected_before_any_write",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback orchestration (stage write, validation SQL, MERGE, run-table records, watermark advance) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestRunWriteback::test_stage_only_default_does_not_merge_or_advance_watermark",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback orchestration (stage write, validation SQL, MERGE, run-table records, watermark advance) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestRunWriteback::test_validation_failure_records_validation_failed_and_raises",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback orchestration (stage write, validation SQL, MERGE, run-table records, watermark advance) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestRunWriteback::test_validation_failure_state_records_no_merge_attempt",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: writeback orchestration (stage write, validation SQL, MERGE, run-table records, watermark advance) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestSQLBuilders::test_merge_requires_final_table",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: run-table/watermark DDL, validation SQL and MERGE statement builders removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestSQLBuilders::test_merge_requires_non_key_columns",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: run-table/watermark DDL, validation SQL and MERGE statement builders removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestSQLBuilders::test_merge_statement_keys_on_site_id_and_timestamp",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: run-table/watermark DDL, validation SQL and MERGE statement builders removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestSQLBuilders::test_runs_ddl_includes_required_columns",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: run-table/watermark DDL, validation SQL and MERGE statement builders removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestSQLBuilders::test_validation_query_covers_required_metrics",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: run-table/watermark DDL, validation SQL and MERGE statement builders removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestSQLBuilders::test_watermark_ddl_uses_site_id_pk",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: run-table/watermark DDL, validation SQL and MERGE statement builders removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateSourceColumnsUnique::test_duplicate_source_columns_raise",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestValidateSourceColumnsUnique::test_duplicate_source_columns_raise"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateSourceColumnsUnique::test_empty_is_noop",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestValidateSourceColumnsUnique::test_empty_is_noop"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateSourceColumnsUnique::test_none_is_noop",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestValidateSourceColumnsUnique::test_none_is_noop"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateSourceColumnsUnique::test_unique_columns_pass",
+      "slice": "M002-S04",
+      "reason": "neutral payload/uniqueness assertion moved unchanged to the storage-neutral module against miaproc.eddy.payload (the BigQuery writeback module that re-exported it was removed by M002-S04)",
+      "replacements": [
+        "tests/test_m002_s04_payload_regressions.py::TestValidateSourceColumnsUnique::test_unique_columns_pass"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateStageTable::test_clean_metrics_pass",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: stage-table validation query results removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateStageTable::test_duplicate_keys_raise",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: stage-table validation query results removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_bigquery_writeback.py::TestValidateStageTable::test_zero_rows_raises",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: stage-table validation query results removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_eddy_m34_wide_passthrough.py::TestSilverCLIDryRunWidePassthroughM34::test_silver_dry_run_metadata_has_no_missing_input_columns",
+      "slice": "M002-S04",
+      "reason": "BigQuery silver CLI (eddy run-bigquery-silver, --stage-payload-dry-run-dir, writeback) removed by M002-S04; the M34 wide-column assertions now run on the published silver Parquet of eddy run-silver with the same wide bronze flux/biomet inputs",
+      "replacements": [
+        "tests/test_eddy_m34_wide_passthrough.py::TestSilverFileCLIWidePassthroughM34::test_silver_file_run_has_no_missing_input_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_m34_wide_passthrough.py::TestSilverCLIDryRunWidePassthroughM34::test_silver_dry_run_metadata_lists_representative_wide_columns",
+      "slice": "M002-S04",
+      "reason": "BigQuery silver CLI (eddy run-bigquery-silver, --stage-payload-dry-run-dir, writeback) removed by M002-S04; the M34 wide-column assertions now run on the published silver Parquet of eddy run-silver with the same wide bronze flux/biomet inputs",
+      "replacements": [
+        "tests/test_eddy_m34_wide_passthrough.py::TestSilverFileCLIWidePassthroughM34::test_silver_file_run_lists_representative_wide_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_m34_wide_passthrough.py::TestSilverCLIDryRunWidePassthroughM34::test_silver_dry_run_records_unit_aware_aliases_only",
+      "slice": "M002-S04",
+      "reason": "BigQuery silver CLI (eddy run-bigquery-silver, --stage-payload-dry-run-dir, writeback) removed by M002-S04; the M34 wide-column assertions now run on the published silver Parquet of eddy run-silver with the same wide bronze flux/biomet inputs",
+      "replacements": [
+        "tests/test_eddy_m34_wide_passthrough.py::TestSilverFileCLIWidePassthroughM34::test_silver_file_run_rebinds_only_unit_aware_names"
+      ]
+    },
+    {
+      "node_id": "tests/test_eddy_m34_wide_passthrough.py::TestSilverCLIWritebackWidePassthroughM34::test_silver_writeback_payload_contains_wide_columns",
+      "slice": "M002-S04",
+      "reason": "BigQuery silver CLI (eddy run-bigquery-silver, --stage-payload-dry-run-dir, writeback) removed by M002-S04; the M34 wide-column assertions now run on the published silver Parquet of eddy run-silver with the same wide bronze flux/biomet inputs",
+      "replacements": [
+        "tests/test_eddy_m34_wide_passthrough.py::TestSilverFileCLIWidePassthroughM34::test_silver_file_run_payload_contains_wide_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryEngineDispatch::test_hesseflux_ltwrapper_dispatch",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (engine dispatch through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestEngineDispatch::test_hesseflux_ltwrapper_sets_lt_mode"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryEngineDispatch::test_hesseflux_native_dispatch",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (engine dispatch through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestEngineDispatch::test_hesseflux_native_dispatches_to_hesseflux"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryEngineDispatch::test_reddyproc_reference_after_preflight",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (engine dispatch through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestEngineDispatch::test_reddyproc_reference_dispatches_after_preflight",
+        "tests/test_cli_eddy_silver_gold.py::TestGoldPreflightGate::test_gold_reddyproc_approved_preflight_dispatches"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryFailurePaths::test_bigquery_read_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryFailurePaths) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryFailurePaths::test_runtime_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (runtime-failure exit 4 through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestFailurePaths::test_runtime_failure_returns_four",
+        "tests/test_cli_eddy_silver_gold.py::TestGoldStage::test_gold_runtime_failure_returns_four"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryOutputArtifacts::test_unsupported_extension_exits_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (output-extension validation through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestOutputArtifacts::test_unsupported_table_extension_exits_three"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryOutputArtifacts::test_writes_table_diagnostics_and_run_metadata",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (artifact writing through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestOutputArtifacts::test_writes_table_diagnostics_and_run_metadata",
+        "tests/test_cli_eddy_silver_gold.py::TestGoldStage::test_gold_consumes_silver_csv_and_writes_artifacts"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryPreflightGate::test_reddyproc_reference_requires_repo_root",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (preflight gate through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestPreflightGate::test_reddyproc_reference_requires_repo_root",
+        "tests/test_cli_eddy_silver_gold.py::TestGoldPreflightGate::test_gold_reddyproc_requires_repo_root"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryPreflightGate::test_unapproved_preflight_exits_two",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (preflight gate through run-bigquery)",
+      "replacements": [
+        "tests/test_cli.py::TestPreflightGate::test_unapproved_preflight_exits_two",
+        "tests/test_cli_eddy_silver_gold.py::TestGoldPreflightGate::test_gold_reddyproc_unapproved_preflight_exits_two"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_allow_final_merge_without_stage_exit_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_explicit_merge_passes_authorization_through",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_failed_merge_local_runjson_reports_merge_attempted",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_output_project_must_differ_from_input_project",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_partial_writeback_flags_exit_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_stage_only_default_engages_writeback_without_merge",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestBigQueryWritebackWiring::test_writeback_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryWritebackWiring) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestNamespaceAndParsing::test_eddy_namespace_help_exits_zero",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (eddy namespace help formerly asserted in the BigQuery module)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestEddyNamespace::test_eddy_namespace_help_exits_zero"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestNamespaceAndParsing::test_eddy_run_bigquery_help_exits_zero",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestNamespaceAndParsing) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestNamespaceAndParsing::test_existing_run_namespace_unchanged",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (file 'run' namespace check formerly in the BigQuery module)",
+      "replacements": [
+        "tests/test_cli.py::TestArgParsing::test_run_help_exits_zero",
+        "tests/test_cli.py::TestArgParsing::test_required_flags_missing_exits"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestNamespaceAndParsing::test_required_bq_flags_are_enforced",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestNamespaceAndParsing) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestPrepareProcessedForStage::test_attaches_identity_columns_keyed_on_site_and_datetime",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestPrepareProcessedForStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery.py::TestPrepareProcessedForStage::test_missing_datetime_raises",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestPrepareProcessedForStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestBigQueryConfigAllCategories::test_biomet_query_has_no_site_filter_when_site_id_none",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryConfigAllCategories) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestBigQueryConfigAllCategories::test_default_site_id_is_none",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryConfigAllCategories) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestBigQueryConfigAllCategories::test_flux_query_has_no_site_filter_when_site_id_none",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryConfigAllCategories) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestBigQueryConfigAllCategories::test_flux_query_keeps_site_filter_when_site_id_set",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryConfigAllCategories) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestBigQueryConfigAllCategories::test_silver_query_has_no_site_filter_when_none",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryConfigAllCategories) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestGroupedBigQueryGold::test_grouped_gold_runs_engine_per_category",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M24 grouped gold per-category engine runs through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_m002_s02_parquet_io.py::TestCliParquet::test_grouped_parquet_runs_groups_independently",
+        "tests/test_m002_s02_parquet_io.py::TestCliParquetC1Cases::test_gold_rejects_colliding_labels_before_any_group"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestGroupedBigQueryGold::test_grouped_gold_writeback_one_call_with_both_sites",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestGroupedBigQueryGold) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestGroupedBigQuerySilver::test_grouped_silver_processes_every_category",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M24 grouped silver through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_m002_s02_parquet_io.py::TestCliParquet::test_grouped_parquet_runs_groups_independently",
+        "tests/test_cli_eddy_m24_grouped.py::TestFileBasedGroupedSilver::test_run_silver_with_group_column_processes_each_site"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestGroupedBigQuerySilver::test_grouped_silver_stacks_final_output",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M24 deterministic stacking through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_m002_s02_parquet_io.py::TestCliParquet::test_grouped_parquet_runs_groups_independently",
+        "tests/test_cli_eddy_m24_grouped.py::TestFileBasedGroupedSilver::test_run_silver_with_group_column_processes_each_site"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestGroupedBigQuerySilver::test_grouped_silver_writeback_called_once_with_stacked",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestGroupedBigQuerySilver) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestGroupedBigQuerySilver::test_grouped_silver_writes_per_category_artifacts",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M24 per-category artifacts through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_m002_s02_parquet_io.py::TestCliParquet::test_grouped_parquet_runs_groups_independently"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestMaxTimestampsBySite::test_no_site_id_column_returns_empty",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestMaxTimestampsBySite) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestMaxTimestampsBySite::test_single_site_one_entry",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestMaxTimestampsBySite) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestMaxTimestampsBySite::test_two_sites_two_entries",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestMaxTimestampsBySite) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestRunWritebackPerSiteWatermark::test_grouped_merge_advances_one_watermark_per_site",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestRunWritebackPerSiteWatermark) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::TestRunWritebackPerSiteWatermark::test_stage_only_grouped_run_does_not_advance_watermark",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestRunWritebackPerSiteWatermark) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::test_eddy_commands_reject_site_id_flag[command1]",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (test_eddy_commands_reject_site_id_flag[command1]) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::test_eddy_commands_reject_site_id_flag[command4]",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (test_eddy_commands_reject_site_id_flag[command4]) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m24_grouped.py::test_eddy_commands_reject_site_id_flag[command5]",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (test_eddy_commands_reject_site_id_flag[command5]) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestGoldM32SourceTruth::test_gold_consumes_source_truth_silver_and_runs_backend",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 gold source-truth contract through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestGoldM32SourceTruth::test_gold_dry_run_metadata_records_source_truth_payload",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 gold source-truth payload via the BigQuery dry-run)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestGoldM32SourceTruth::test_gold_stage_payload_preserves_source_truth_silver_columns",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 gold preservation of silver columns in the BigQuery stage payload)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestSilverM32SourceTruth::test_silver_dry_run_alias_map_is_m32_contract",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 unit-aware alias names via the BigQuery dry-run alias map)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns",
+        "tests/test_cli_eddy_m32a_timestamp.py::TestConstantsAgainstLineageCSVM32A::test_constants_match_csv_row_by_row_including_time"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestSilverM32SourceTruth::test_silver_dry_run_payload_uses_source_truth_final_names",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 silver source-truth names via the BigQuery dry-run)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestSilverM32SourceTruth::test_silver_local_artifact_uses_source_truth_names",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 silver local artifact through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns",
+        "tests/test_m002_s02_parquet_io.py::TestCliParquet::test_silver_from_parquet_is_source_facing"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32_source_truth.py::TestSilverM32SourceTruth::test_silver_real_writeback_hands_source_truth_payload",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 silver payload handed to BigQuery writeback)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32a_timestamp.py::TestGoldM32ATimestampOnlySilver::test_gold_dry_run_metadata_has_timestamp_no_DateTime",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32A gold timestamp contract via the BigQuery dry-run)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32a_timestamp.py::TestGoldM32ATimestampOnlySilver::test_gold_runs_with_timestamp_only_silver_and_reconstructs_DateTime",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32A gold DateTime reconstruction through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver",
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_timestamp_wins_over_leaked_DateTime"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32a_timestamp.py::TestGoldM32ATimestampOnlySilver::test_gold_stage_payload_has_one_timestamp_no_DateTime",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32A gold stage payload timestamp contract)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver",
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_timestamp_wins_over_leaked_DateTime"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32a_timestamp.py::TestSilverM32ATimestampContract::test_silver_dry_run_metadata_has_timestamp_no_DateTime",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32A silver timestamp contract via the BigQuery dry-run)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32a_timestamp.py::TestSilverM32ATimestampContract::test_silver_local_csv_has_timestamp_no_DateTime",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32A silver local CSV through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_m002_s02_parquet_io.py::TestCliParquet::test_csv_output_keeps_the_legacy_shape",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_m32a_timestamp.py::TestSilverM32ATimestampContract::test_silver_real_writeback_payload_has_one_timestamp_no_DateTime",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32A silver payload handed to BigQuery writeback)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_gold_engine_default_is_reddyproc_reference",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (gold engine default through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestArgParsing::test_gold_engine_default_is_reddyproc_reference"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_gold_help_exits_zero",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (help through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestArgParsing::test_gold_help_exits_zero"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_gold_required_flags_missing_exits",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (required flags through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestArgParsing::test_gold_required_flags_missing_exits"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_silver_does_not_accept_engine",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (silver accepts no engine (run-bigquery-silver))",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestEddyNamespace::test_silver_does_not_accept_backend_flags[--engine-hesseflux-native]"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_silver_does_not_accept_final_or_merge_flags",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestArgParsing) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_silver_does_not_accept_repo_root",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (silver needs no R repo root (run-bigquery-silver))",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestEddyNamespace::test_silver_does_not_accept_backend_flags[--repo-root-.]"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_silver_help_exits_zero",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (help through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestArgParsing::test_silver_help_exits_zero"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsing::test_silver_required_flags_missing_exits",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (required flags through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestArgParsing::test_silver_required_flags_missing_exits"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsingM29::test_gold_accepts_stage_payload_dry_run_dir",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestArgParsingM29) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestArgParsingM29::test_silver_accepts_stage_payload_dry_run_dir",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestArgParsingM29) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_allow_final_merge_requires_final_table",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_allow_final_merge_without_stage_exit_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_consumes_silver_and_writes_artifacts",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (gold artifacts through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestGoldStage::test_gold_consumes_silver_parquet",
+        "tests/test_cli_eddy_silver_gold.py::TestGoldStage::test_gold_consumes_silver_csv_and_writes_artifacts"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_explicit_merge_passes_authorization_through",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_hesseflux_does_not_invoke_preflight",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (no R preflight for hesseflux gold (run-bigquery-gold))",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestGoldStage::test_gold_hesseflux_does_not_invoke_preflight"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_partial_writeback_flags_exit_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_reddyproc_requires_repo_root",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (preflight gate through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestGoldPreflightGate::test_gold_reddyproc_requires_repo_root"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_reddyproc_unapproved_preflight_exits_two",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (preflight gate through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestGoldPreflightGate::test_gold_reddyproc_unapproved_preflight_exits_two"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_runtime_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (runtime-failure exit 4 through run-bigquery-gold)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestGoldStage::test_gold_runtime_failure_returns_four"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_silver_read_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_stage_only_writeback_engages_without_merge",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_writeback_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQueryGoldStage::test_gold_writes_to_forbidden_production_project_runtime_fails",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQueryGoldStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_does_not_invoke_preflight",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (no R preflight for silver (run-bigquery-silver))",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestSilverStage::test_silver_does_not_invoke_preflight"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_runtime_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (runtime-failure exit 4 through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestSilverStage::test_silver_runtime_failure_returns_four"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_stage_only_writeback_engages",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQuerySilverStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_staging_to_staging_writeback_accepted",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQuerySilverStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_unsupported_extension_exits_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (output-extension validation through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestSilverStage::test_silver_unsupported_extension_exits_three"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_writeback_failure_returns_four",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQuerySilverStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_writeback_partial_flags_exit_three",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQuerySilverStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_writes_table_and_run_json",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (silver artifacts through run-bigquery-silver)",
+      "replacements": [
+        "tests/test_cli_eddy_silver_gold.py::TestSilverStage::test_silver_writes_table_and_run_json_csv",
+        "tests/test_cli_eddy_silver_gold.py::TestSilverStage::test_silver_writes_parquet_when_extension_matches"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestBigQuerySilverStage::test_silver_writes_to_forbidden_production_project_runtime_fails",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestBigQuerySilverStage) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestGoldPayloadM28::test_gold_writeback_preserves_silver_sentinel",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M28 gold preservation of a silver sentinel column in the BigQuery stage payload)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestGoldSourceTruthFile::test_gold_consumes_timestamp_only_silver_and_preserves_silver"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestGoldStagePayloadDryRunM29::test_gold_dry_run_wins_over_stage_and_merge_flags",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestGoldStagePayloadDryRunM29) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestGoldStagePayloadDryRunM29::test_gold_dry_run_writes_payload_and_metadata",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestGoldStagePayloadDryRunM29) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestOneShotRunBigQueryUnchanged::test_one_shot_help_still_works",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestOneShotRunBigQueryUnchanged) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestOneShotRunBigQueryUnchanged::test_one_shot_required_flags_still_enforced",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestOneShotRunBigQueryUnchanged) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestRealWritebackUnchangedWhenDryRunFlagAbsent::test_gold_real_writeback_still_calls_run_writeback",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestRealWritebackUnchangedWhenDryRunFlagAbsent) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestRealWritebackUnchangedWhenDryRunFlagAbsent::test_silver_real_writeback_still_calls_run_writeback",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestRealWritebackUnchangedWhenDryRunFlagAbsent) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverDryRunCloudShapeAliasResolutionM32::test_silver_dry_run_accepts_normalized_aliases",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 unit-aware alias resolution via the BigQuery dry-run preservation check)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverDryRunCloudShapeAliasResolutionM32::test_silver_dry_run_columns_have_no_case_insensitive_duplicates",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestSilverDryRunCloudShapeAliasResolutionM32) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverDryRunCloudShapeAliasResolutionM32::test_silver_dry_run_equivalent_RH_rH_preserved_separately",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M32 flux RH preserved separately from biomet humidity via the BigQuery dry-run)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverDryRunCloudShapeAliasResolutionM32::test_silver_dry_run_strict_when_bronze_column_truly_unrepresented",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestSilverDryRunCloudShapeAliasResolutionM32) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverNonDryRunHandsBigQueryCompatiblePayloadM31::test_real_writeback_payload_has_no_case_insensitive_duplicates",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestSilverNonDryRunHandsBigQueryCompatiblePayloadM31) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverPayloadM28::test_silver_writeback_preserves_bronze_sentinel",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04; the storage-neutral replacement keeps the equivalent assertion (M28 bronze sentinel preservation in the BigQuery silver stage payload)",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverSourceTruthFile::test_silver_parquet_uses_source_truth_names_and_keeps_flux_columns"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverPayloadM28::test_silver_writeback_resolves_divergent_rH_collision",
+      "slice": "M002-S04",
+      "reason": "BigQuery CLI command removed by M002-S04 (the BigQuery silver writeback payload no longer exists). The M28 humidity-collision assertion moves to the file CLI: eddy run-silver with Parquet output on a stage-1 frame carrying a duplicate rH (divergent and equivalent, ungrouped and grouped) asserts the published silver Parquet humidity columns (RH_1_1_1 plus rH_norm_s with the duplicate's values, or suppression), the exact run-JSON column_collision_actions entries (column=rH, action=renamed_divergent_duplicate, renamed_to=rH_norm_s; or suppressed_equivalent_duplicate, renamed_to=None; per group with category_value) and validate-run on the published run; the payload-level helper test pins the same policy on prepare_local_silver_payload",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[divergent-ungrouped]",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[divergent-grouped]",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[equivalent-ungrouped]",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[equivalent-grouped]",
+        "tests/test_m002_s02_parquet_io.py::TestLocalSilverPayload::test_duplicate_humidity_is_deterministic_and_not_multiplied[second1-expected_cols1-renamed_divergent_duplicate]",
+        "tests/test_m002_s02_parquet_io.py::TestLocalSilverPayload::test_duplicate_humidity_is_deterministic_and_not_multiplied[second0-expected_cols0-suppressed_equivalent_duplicate]"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverStagePayloadDryRunM29::test_silver_dry_run_artifact_write_failure_returns_runtime_exit",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestSilverStagePayloadDryRunM29) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverStagePayloadDryRunM29::test_silver_dry_run_records_rh_collision_actions",
+      "slice": "M002-S04",
+      "reason": "BigQuery dry-run (--stage-payload-dry-run-dir) removed by M002-S04; the published silver run JSON is its file-workflow replacement. The file-CLI replacement runs eddy run-silver with Parquet output on a stage-1 frame carrying a duplicate rH and asserts the exact column_collision_actions entries in the published silver_run.json (column=rH, action=renamed_divergent_duplicate, renamed_to=rH_norm_s, source_column_name, reason; the equivalent case records suppressed_equivalent_duplicate), top-level and per group for a grouped run, plus validate-run on the published run; the payload-level helper test pins the same policy on prepare_local_silver_payload",
+      "replacements": [
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[divergent-ungrouped]",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[divergent-grouped]",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[equivalent-ungrouped]",
+        "tests/test_cli_eddy_m32_source_truth.py::TestSilverHumidityCollisionFile::test_silver_publishes_humidity_resolution_and_run_json_actions[equivalent-grouped]",
+        "tests/test_m002_s02_parquet_io.py::TestLocalSilverPayload::test_duplicate_humidity_is_deterministic_and_not_multiplied[second1-expected_cols1-renamed_divergent_duplicate]",
+        "tests/test_m002_s02_parquet_io.py::TestLocalSilverPayload::test_duplicate_humidity_is_deterministic_and_not_multiplied[second0-expected_cols0-suppressed_equivalent_duplicate]"
+      ]
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverStagePayloadDryRunM29::test_silver_dry_run_wins_over_bq_stage_table",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestSilverStagePayloadDryRunM29) removed by M002-S04",
+      "replacements": []
+    },
+    {
+      "node_id": "tests/test_cli_eddy_bigquery_silver_gold.py::TestSilverStagePayloadDryRunM29::test_silver_dry_run_writes_payload_and_metadata",
+      "slice": "M002-S04",
+      "reason": "BigQuery transport-only: BigQuery CLI/read/writeback/watermark/dry-run surface (TestSilverStagePayloadDryRunM29) removed by M002-S04",
+      "replacements": []
+    }
+  ]
+}

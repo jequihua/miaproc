@@ -36,7 +36,8 @@ BIOMET_OUT_RENAME = {
 # hesseflux/REddyProc/dynamic-u*/QC/rain/sigma processing and
 # ``miaproc.eddy.stage2.prepare_reddyproc_input`` remain unchanged.
 # Silver and gold *outputs* carry source-facing final names so the
-# BigQuery silver/gold tables look like source-truth products instead
+# silver/gold tables (Parquet files since M002; formerly BigQuery tables)
+# look like source-truth products instead
 # of renamed processing tables.
 #
 # ``air_temperature_c`` and ``VPD_hpa`` bake the processed unit into
@@ -44,8 +45,8 @@ BIOMET_OUT_RENAME = {
 # copies of the same physical concept in the staged payload. ``rH``
 # becomes ``RH_1_1_1`` (the biomet source name), which is
 # case-insensitively distinct from a preserved flux-side ``RH`` so the
-# two humidity series can coexist without colliding on the BigQuery
-# field key (M32 supersedes the M31 ``rH``/``rH_norm_s`` band-aid for
+# two humidity series can coexist without colliding on the
+# case-insensitive field key (M32 supersedes the M31 ``rH``/``rH_norm_s`` band-aid for
 # the ``RH``/``rH`` case-collision because the final names are no
 # longer ambiguous).
 #
@@ -53,7 +54,7 @@ BIOMET_OUT_RENAME = {
 # (``06_infra/schemas/eddy_bronze_to_stage_column_lineage_contract.csv``
 # lines 3 and 18) requires: the internal processing column is
 # ``DateTime`` and the inherited final time column is ``timestamp``.
-# The BigQuery writeback identity triple already uses ``timestamp``,
+# The inherited source-facing identity triple already uses ``timestamp``,
 # so the silver / gold output boundary collapses to a single
 # ``timestamp`` column and the internal ``DateTime`` is recomputed
 # on the gold side via :func:`silver_to_internal_calc_frame` before

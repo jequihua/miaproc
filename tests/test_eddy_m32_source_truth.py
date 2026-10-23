@@ -4,9 +4,9 @@ Stage 1 still computes under internal aliases (``NEE``, ``QC_NEE``,
 ``Tair``, ``USTAR``, ``VPD``, ``Rg``, ``P_RAIN``, ``rH``); silver and
 gold payloads expose source-facing final names (``co2_flux``,
 ``qc_co2_flux``, ``air_temperature_c``, ``u_star``, ``VPD_hpa``,
-``SWIN_1_1_1``, ``P_RAIN_1_1_1``, ``RH_1_1_1``) so the BigQuery
-silver/gold tables look like source-truth products instead of
-renamed processing tables.
+``SWIN_1_1_1``, ``P_RAIN_1_1_1``, ``RH_1_1_1``) so the silver/gold
+outputs look like source-truth products instead of renamed
+processing tables.
 
 These tests cover:
 
@@ -15,26 +15,31 @@ These tests cover:
 - the source-truth final names appearing in ``prepare_silver_stage_payload``
   outputs;
 - the dropped redundant backend passthroughs from
-  ``prepare_stage_dataframe`` outputs when the source-truth silver
+  ``prepare_gold_stage_payload`` outputs when the source-truth silver
   columns are attached;
 - the preservation of flux-side ``RH`` separately from biomet
   ``RH_1_1_1``;
 - the unit-baked final names ``air_temperature_c`` (Celsius) and
   ``VPD_hpa`` (hPa);
-- the case-insensitive BigQuery field-name uniqueness invariant.
+- the case-insensitive field-name uniqueness invariant (``column_field_key``).
 """
 from __future__ import annotations
 
 import pandas as pd
 import pytest
 
-from miaproc.eddy.bigquery_writeback import (
+# M002-S04: the BigQuery module that re-exported these neutral helpers
+# was removed; the same objects are imported from ``miaproc.eddy.payload``.
+# ``column_field_key`` is the former ``bigquery_field_key`` (casefold key)
+# and ``prepare_gold_stage_payload`` is the former ``prepare_stage_dataframe``
+# with ``preserve_payload_columns=True`` and no BigQuery target schema.
+from miaproc.eddy.payload import (
     DuplicateStageColumnsError,
     HUMIDITY_DERIVED_RENAME,
     apply_silver_source_truth_rename,
-    bigquery_field_key,
+    column_field_key,
+    prepare_gold_stage_payload,
     prepare_silver_stage_payload,
-    prepare_stage_dataframe,
     silver_to_internal_calc_frame,
 )
 
@@ -365,7 +370,7 @@ class TestPrepareSilverStagePayloadSourceTruth:
     def test_payload_unique_under_bigquery_field_key(self):
         silver = _internal_silver_cloud_shape()
         payload, _ = prepare_silver_stage_payload(silver, site_id="RBRL")
-        keys = [bigquery_field_key(c) for c in payload.columns]
+        keys = [column_field_key(c) for c in payload.columns]
         assert len(set(keys)) == len(keys), list(payload.columns)
 
     def test_air_temperature_c_carries_celsius_values(self):
@@ -397,7 +402,7 @@ class TestPrepareSilverStagePayloadSourceTruth:
 
 
 # ---------------------------------------------------------------------------
-# prepare_stage_dataframe under the M32 contract for gold
+# prepare_gold_stage_payload under the M32 contract for gold
 # ---------------------------------------------------------------------------
 
 
@@ -448,8 +453,8 @@ def _gold_with_source_truth_silver() -> pd.DataFrame:
 class TestPrepareStageDataframeSourceTruthGold:
     def test_source_truth_silver_columns_preserved_in_gold_payload(self):
         gold = _gold_with_source_truth_silver()
-        out = prepare_stage_dataframe(
-            gold, site_id="RBRL", preserve_payload_columns=True
+        out = prepare_gold_stage_payload(
+            gold, site_id="RBRL"
         )
         cols = list(out.columns)
         for col in (
@@ -472,8 +477,8 @@ class TestPrepareStageDataframeSourceTruthGold:
         self,
     ):
         gold = _gold_with_source_truth_silver()
-        out = prepare_stage_dataframe(
-            gold, site_id="RBRL", preserve_payload_columns=True
+        out = prepare_gold_stage_payload(
+            gold, site_id="RBRL"
         )
         cols = list(out.columns)
         # Backend passthroughs that duplicate source-truth columns
@@ -483,8 +488,8 @@ class TestPrepareStageDataframeSourceTruthGold:
 
     def test_new_gold_processing_outputs_renamed_to_lowercase(self):
         gold = _gold_with_source_truth_silver()
-        out = prepare_stage_dataframe(
-            gold, site_id="RBRL", preserve_payload_columns=True
+        out = prepare_gold_stage_payload(
+            gold, site_id="RBRL"
         )
         cols = list(out.columns)
         for new in ("nee_f", "nee_fqc", "sw_in_f", "ta_f", "vpd_f"):
@@ -498,10 +503,10 @@ class TestPrepareStageDataframeSourceTruthGold:
 
     def test_payload_unique_under_bigquery_field_key(self):
         gold = _gold_with_source_truth_silver()
-        out = prepare_stage_dataframe(
-            gold, site_id="RBRL", preserve_payload_columns=True
+        out = prepare_gold_stage_payload(
+            gold, site_id="RBRL"
         )
-        keys = [bigquery_field_key(c) for c in out.columns]
+        keys = [column_field_key(c) for c in out.columns]
         assert len(set(keys)) == len(keys), list(out.columns)
 
     def test_legacy_backend_only_gold_keeps_internal_names(self):
@@ -520,8 +525,8 @@ class TestPrepareStageDataframeSourceTruthGold:
                 "NEE_f": [0.11, 0.21, 0.31],
             }
         )
-        out = prepare_stage_dataframe(
-            legacy_gold, site_id="RBRL", preserve_payload_columns=True
+        out = prepare_gold_stage_payload(
+            legacy_gold, site_id="RBRL"
         )
         cols = list(out.columns)
         for backend in ("NEE", "Tair", "USTAR"):

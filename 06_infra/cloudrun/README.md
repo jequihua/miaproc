@@ -1,75 +1,69 @@
 ﻿# Cloud Run Examples
 
-This folder contains placeholder Cloud Run Job examples for engineers who will build, push, and deploy `miaproc` themselves.
-
-These files are examples, not pinned production manifests:
+This folder contains a placeholder Cloud Run Job template for engineers who
+build, push and deploy `miaproc` themselves. It is an example, not a
+deployed or qualified manifest:
 
 - no image digest is pinned;
-- no service account is hard-coded;
-- no live Google Cloud resource is assumed;
-- all values wrapped in `<...>` must be replaced by the deploying team.
-
-The Google Cloud role grants your team must configure are usually called **IAM bindings**: bindings of a member, commonly a service account, to a role on a project, dataset, table, Artifact Registry repository, or Cloud Run resource.
+- no service account, bucket or project is hard-coded;
+- no live cloud resource is assumed, created or tested;
+- all values wrapped in `<...>` must be replaced by the deploying team;
+- field names should be checked against the current Cloud Run Jobs
+  documentation.
 
 ## Files
 
-- `biomass-job.example.yaml` - one biomass BigQuery job template. Use it as stage-only by omitting merge args, or as explicit merge by filling `--bq-final-table` and keeping `--bq-allow-final-merge`.
-- `eddy-split-jobs.example.yaml` - multi-document template for eddy silver dry-run, silver writeback, gold dry-run, gold stage-only, and gold explicit merge.
+- `eddy-split-jobs.example.yaml` - multi-document template for the
+  file-based eddy silver job, gold job (`reddyproc-reference`) and a
+  `validate-run` consumer check. Inputs come from a read-only mount and
+  each execution publishes one fresh run directory on a writable mount.
+
+The former BigQuery jobs (dry-run, stage writeback, MERGE) were removed with
+the BigQuery commands in M002-S04; see
+[`../../docs/MIGRATING_FROM_BIGQUERY.md`](../../docs/MIGRATING_FROM_BIGQUERY.md).
 
 ## Required Placeholders
 
 ```text
 <PROJECT_ID>
-<REGION>
-<IMAGE_URI>
 <SERVICE_ACCOUNT_EMAIL>
-<BILLING_PROJECT>
-<INPUT_PROJECT>
-<INPUT_DATASET>
-<OUTPUT_PROJECT>
-<OUTPUT_DATASET>
-<CONTROL_DATASET>
+<IMAGE_URI_PINNED_BY_DIGEST>
+<INPUT_BUCKET>
+<OUTPUT_BUCKET>
+<WINDOW>
+<SILVER_RUN>
+<GOLD_RUN>
+<RUN_TO_CHECK>
+<STAGE>
+<SCRATCH_BYTES>
 ```
-
-Domain-specific table placeholders appear inside each YAML.
 
 ## Recommended Order
 
-For eddy, run dry-run jobs first and inspect `stage_payload_metadata.json` before any mutating writeback:
+1. The orchestrator writes immutable Parquet inputs for the selected window
+   (`<INPUT_BUCKET>/<WINDOW>/flux.parquet`, `biomet.parquet`).
+2. Run the silver job with a new `<SILVER_RUN>` name.
+3. Run the validate-run job on that silver run (`--stage=silver`).
+4. Run the gold job with a new `<GOLD_RUN>` name and the validated silver
+   table.
+5. Run the validate-run job on the gold run (`--stage=gold`); only then may
+   a consumer load the gold table elsewhere (engineer-owned).
 
-```text
-columns_unique: true
-duplicate_columns: []
-missing_input_columns: []
-bigquery_write_attempted: false
-validation_sql_attempted: false
-merge_attempted: false
-watermark_advanced: false
-```
+Retries always use new run names; never delete or reuse a run directory.
+An existence check is not a lock: the orchestrator must keep run names
+exclusive.
 
-Under the accepted M32A source-truth contract, the silver and gold dry-run
-`columns` should carry source-truth final names and a single `timestamp`
-column (no internal `DateTime`, `NEE`, `Tair`, `USTAR`, `VPD`, `Rg`,
-`P_RAIN`, or `rH` in the final payload). Flux-side `RH` and biomet-side
-`RH_1_1_1` are case-insensitively distinct and may both appear. The M28
-defensive `rH_norm_s` fallback still resolves a divergent derived humidity
-column; non-humidity case-insensitive duplicates raise rather than being
-silently fused.
+## Identity and permissions
 
-For mutating jobs, keep production source projects read-only and write only to your staging/output project unless governance explicitly authorizes otherwise. The package default still rejects writes to project `manglaria`.
+The job identity needs read access to the input bucket, write access to the
+output bucket and image pull access. miaproc needs no other cloud permission
+and performs no credential lookup.
 
-## M35 disposable smoke
+## Mounted storage and resources
 
-Before treating any of these YAMLs as the basis of a recurring job, run
-the disposable BigQuery stage-write smoke documented in
-`06_infra/eddy_handoff.md` ("Disposable BigQuery smoke commands (M35)").
-That smoke runs locally from the engineer's machine through the same
-Docker image the Cloud Run Job would use, writes to
-`cf_s2_*_stage_m35_smoke_<YYYYMMDDHHMMSS>` disposable tables in
-`manglaria-staging`, verifies the silver/gold schemas are casefold-unique
-and carry the widened M34 carbon-flux pass-through (`h2o_flux`,
-`qc_h2o_flux`, `sonic_temperature`, `air_pressure`, `wind_speed`, `TKE`,
-`v_var`, `RH`, …) under source-truth names, and is cleaned up with
-`bq rm -f -t ...` immediately after. The Cloud Run YAML must not be
-applied against a canonical final table until the disposable smoke has
-been accepted.
+Cloud Storage FUSE has incomplete POSIX semantics (non-atomic rename, no
+locks or appends, errors reported at close, metadata caches). The Cloud Run
+local filesystem is in memory, so `--scratch-dir` consumes RAM: size the
+memory limit for Python, R, scratch and the FUSE driver together. See
+[`../../docs/RUN_PUBLICATION.md`](../../docs/RUN_PUBLICATION.md). Each
+driver and its flags need engineer qualification.

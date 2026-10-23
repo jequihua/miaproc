@@ -1,31 +1,44 @@
 # Eddy Cloud Engineer Handoff
 
-Current as of M35 (built on accepted M32A + M33 + M33A + M34). This is the
-only canonical eddy handoff in `06_infra/`.
+Current as of M002-S04. This is the only canonical eddy handoff in
+`06_infra/`. It is guidance for the engineers who deploy and orchestrate
+miaproc; nothing here is deployed, qualified or executed against cloud
+resources by this package.
 
 ## Goal
 
-Run the `miaproc eddy` BigQuery split pipeline from the forward-facing
-repository. The intended cloud flow is two-stage:
+Run the `miaproc eddy` file pipeline as two batch stages over ordinary local
+or mounted paths:
 
-1. Bronze BigQuery inputs -> silver stage/final payload using
-   `miaproc eddy run-bigquery-silver`.
-2. Silver BigQuery input -> gold stage/final payload using
-   `miaproc eddy run-bigquery-gold`.
+1. Immutable Parquet flux + biomet inputs -> a published silver run using
+   `miaproc eddy run-silver`.
+2. A published silver run -> a published gold run using
+   `miaproc eddy run-gold`.
 
-M33 does not push a Docker image, does not mutate Artifact Registry, does not
-run Cloud Run, and does not perform live BigQuery writes or MERGEs. It updates
-the deployment-facing artifacts (schemas, this handoff, Cloud Run examples)
-and the forward-facing repository so cloud engineers can build, push, and
-deploy the image themselves.
+Consumers accept a run only after `miaproc eddy validate-run` succeeds. The
+former BigQuery split commands, writeback, MERGE and watermark tables were
+removed in M002-S04; the operator migration guide is
+[`../docs/MIGRATING_FROM_BIGQUERY.md`](../docs/MIGRATING_FROM_BIGQUERY.md).
+miaproc uses no cloud SDK, credentials or network for data processing.
+
+## Responsibility split
+
+| miaproc (this package) | Engineers / orchestrator |
+|---|---|
+| Read the given Parquet (or legacy CSV) inputs without modifying them | Select the input window and write immutable input files |
+| Stage 1, engines, diagnostics, source-facing payloads | Choose the engine/profile and site metadata per job |
+| Publish one fresh run directory per invocation with a completion manifest written last | Hand out exclusive, never-reused run names; schedule reruns with new names |
+| Refuse reuse/overlap/traversal; validate silver before gold | Mount inputs read-only and outputs writable; size memory and scratch |
+| `validate-run` consumer check | Load validated runs elsewhere (warehouse, dashboards), deduplicate or supersede older runs |
+| Exit codes 0/2/3/4/5 | Retry policy, alerting, IAM, image publication, driver qualification |
 
 ## Source-Truth Column Contract (M32A)
 
-Source/bronze columns are the truth. The silver and gold BigQuery payloads
+Source/bronze columns are the truth. The Parquet silver and gold outputs
 carry **source-truth final names** and a single `timestamp` column. Internal
 backend processing still uses canonical R-style names (`DateTime`, `NEE`,
 `Tair`, `USTAR`, `VPD`, `Rg`, `P_RAIN`, `rH`), but those internal passthrough
-names do **not** appear in final silver or gold payloads.
+names do **not** appear in Parquet silver or gold outputs.
 
 Accepted internal -> final mapping (M32A):
 
@@ -43,21 +56,27 @@ rH             -> RH_1_1_1
 
 Additional invariants:
 
-- Silver and gold payloads carry exactly one `timestamp` and no `DateTime`.
+- Parquet silver and gold carry exactly one `timestamp` and no `DateTime`.
 - The gold step reconstructs internal `DateTime` from `timestamp` to drive the
   selected backend; that reconstructed `DateTime` is dropped before the gold
-  stage payload is written.
-- Flux-side `RH` and biomet-side `RH_1_1_1` are case-insensitively distinct
-  and survive separately when present.
-- BigQuery field-name uniqueness is checked with `casefold()`-style
-  case-insensitive logic. Equivalent humidity duplicates resolve to source
-  `rH_norm_s` as a defensive fallback; non-humidity case-insensitive
-  duplicates raise.
+  table is written.
+- Source `primary_key` / `site_id` are carried unchanged (type and values,
+  never synthesized). Gap rows inserted by the 30-minute regularization get
+  the grid `timestamp`, the uniform group `site_id`, a null `primary_key` and
+  missing measurements.
+- Flux-side `RH` and biomet-side `RH_1_1_1` are distinct columns and survive
+  separately when present.
+- A literal duplicate `rH` resolves deterministically (equivalent copy
+  suppressed, divergent copy renamed `rH_norm_s`); any other duplicate name
+  fails the run. Parquet names are case-sensitive, so gold may carry names
+  that differ only by case (for example hesseflux `TA_f` next to `ta_f`);
+  case-insensitive consumers must select them by exact name or rename on
+  load (D014).
 - **M34 widened passthrough:** every unique column from the carbon-flux
-  bronze source table survives bronze → silver → gold under its source
-  name unless miaproc changes its physical units. Today the only
-  unit-aware rebindings are the nine source-truth pairs above. Every
-  other source column (`h2o_flux`, `qc_h2o_flux`, `H_strg`, `LE_strg`,
+  bronze source survives bronze → silver → gold under its source name unless
+  miaproc changes its physical units. Today the only unit-aware rebindings
+  are `air_temperature -> air_temperature_c` and `VPD -> VPD_hpa`; every
+  other flux source column (`h2o_flux`, `qc_h2o_flux`, `H_strg`, `LE_strg`,
   `co2_strg`, `h2o_strg`, `co2_molar_density`, `co2_mole_fraction`,
   `co2_mixing_ratio`, `h2o_molar_density`, `h2o_mole_fraction`,
   `h2o_mixing_ratio`, `sonic_temperature`, `air_pressure`,
@@ -68,45 +87,40 @@ Additional invariants:
   `x_30_pct`, `x_50_pct`, `x_70_pct`, `x_90_pct`, `v_var`, …)
   survives under its bronze name. From the biomet bronze, only the
   three processing-used variables (`SWIN_1_1_1`, `P_RAIN_1_1_1`,
-  `RH_1_1_1`) carry forward. The dry-run preservation guard fails
-  loudly if any unique source column would have been dropped.
+  `RH_1_1_1`) carry forward.
 
 The authoritative column mapping is
-`06_infra/schemas/eddy_bronze_to_stage_column_lineage_contract.csv`. The
-example JSON schemas in `06_infra/schemas/` mirror that CSV.
+`06_infra/schemas/eddy_bronze_to_stage_column_lineage_contract.csv`. The file
+contract (inputs, type policy, outputs) is
+[`../docs/PARQUET_FILE_SCHEMA.md`](../docs/PARQUET_FILE_SCHEMA.md).
 
 ## Repository And Docker
 
-Build from the forward-facing repository root:
+Build from the package root (the directory holding `pyproject.toml`):
 
 ```bash
 docker build -f docker/Dockerfile.miaproc-r45-reddyproc \
-  -t miaproc:cli-r45 .
+  -t miaproc-eddy-parquet:product-local .
 ```
 
-The forward-facing repository layout has `pyproject.toml`, `src/`, `tests/`,
-`docs/`, and `examples/` at the repo root; its Dockerfile installs from
-`/app`, not `/app/08_pkg`. Build from the forward-facing repo only, not from
-the artifact-first development repo.
+The Dockerfile installs the package with the extras `dev,hesseflux,reddyproc`
+(no `bigquery` extra since M002-S04). An image built before M002-S04 still
+contains the former Google packages and BigQuery commands until rebuilt.
 
 Local smoke checks:
 
 ```bash
-docker run --rm miaproc:cli-r45 miaproc --help
-docker run --rm miaproc:cli-r45 miaproc eddy run-bigquery-silver --help
-docker run --rm miaproc:cli-r45 miaproc eddy run-bigquery-gold --help
-```
-
-Both split commands should expose:
-
-```text
---stage-payload-dry-run-dir
+IMAGE=miaproc-eddy-parquet:product-local
+docker run --rm --network none "$IMAGE" miaproc --help
+docker run --rm --network none "$IMAGE" miaproc eddy run-silver --help
+docker run --rm --network none "$IMAGE" miaproc eddy run-gold --help
+docker run --rm --network none "$IMAGE" miaproc eddy validate-run --help
 ```
 
 R preflight check for the REddyProc-capable image:
 
 ```bash
-docker run --rm miaproc:cli-r45 \
+docker run --rm --network none "$IMAGE" \
   python -W error -m miaproc.eddy.r_preflight --repo-root /app
 ```
 
@@ -116,212 +130,96 @@ rpy2 3.6.7, no warnings, no errors.
 On Git Bash for Windows, add `MSYS_NO_PATHCONV=1` before the `docker run`
 command.
 
-This repository update does **not** push a Docker image. Your cloud team
-should tag and push the image from the forward-facing repo into your own
-Artifact Registry repository on the cadence that fits your release process.
+This repository does **not** push a Docker image. Your cloud team tags and
+pushes the image into your own registry and pins it by digest.
 
-## Google Cloud Placeholders
+## Deployment placeholders
 
 Fill these before deployment:
 
 ```text
-PROJECT_ID=<google-cloud-project>
-BILLING_PROJECT=<billing-project>
-REGION=<cloud-run-region>
-ARTIFACT_REPOSITORY=<artifact-registry-repository>
-IMAGE_URI=<REGION>-docker.pkg.dev/<PROJECT_ID>/<ARTIFACT_REPOSITORY>/miaproc:cli-r45
+PROJECT_ID=<cloud-project>
+REGION=<batch-region>
+IMAGE_URI=<registry>/<repository>/miaproc@sha256:<digest>
 EDDY_SERVICE_ACCOUNT=<service-account-email>
-INPUT_PROJECT=<bigquery-source-project>
-INPUT_DATASET=<bigquery-source-dataset>
-OUTPUT_PROJECT=<bigquery-output-project>
-OUTPUT_DATASET=<bigquery-output-dataset>
-CONTROL_DATASET=<orchestration-control-dataset>
-FLUX_TABLE=<bronze-flux-table>
-BIOMET_TABLE=<bronze-biomet-table>
-SILVER_STAGE_TABLE=<silver-stage-table>
-SILVER_FINAL_TABLE=<silver-final-table>
-GOLD_STAGE_TABLE=<gold-stage-table>
-GOLD_FINAL_TABLE=<gold-final-table>
+INPUT_BUCKET=<bucket-or-volume-with-immutable-inputs>
+OUTPUT_BUCKET=<bucket-or-volume-for-run-directories>
+WINDOW=<input-window-id>
+SILVER_RUN=<unique silver run name>
+GOLD_RUN=<unique gold run name>
 GROUP_COLUMN=site_id
 ```
 
-## IAM Bindings To Confirm
+## Permissions To Confirm
 
-These are the Google Cloud **IAM bindings** (role grants binding a member,
-commonly a service account, to a resource) your team should confirm or create.
-Exact role scope is your cloud team's call; prefer the narrowest
-dataset/repository/job scope that works.
+Exact role scope is your cloud team's call; prefer the narrowest scope that
+works:
 
 ```text
-<EDDY_SERVICE_ACCOUNT> -> Artifact Registry reader on <ARTIFACT_REPOSITORY>
-<EDDY_SERVICE_ACCOUNT> -> BigQuery jobUser on <BILLING_PROJECT or PROJECT_ID>
-<EDDY_SERVICE_ACCOUNT> -> BigQuery dataViewer on bronze input dataset(s)
-<EDDY_SERVICE_ACCOUNT> -> BigQuery dataViewer on silver input dataset for gold step
-<EDDY_SERVICE_ACCOUNT> -> BigQuery dataEditor or narrower table-writer role on stage/final/control dataset(s)
-<DEPLOYER_PRINCIPAL> -> Cloud Run developer/admin role for the target jobs
-<DEPLOYER_PRINCIPAL> -> iam.serviceAccountUser on <EDDY_SERVICE_ACCOUNT>
+<EDDY_SERVICE_ACCOUNT> -> image pull on the registry repository
+<EDDY_SERVICE_ACCOUNT> -> read on <INPUT_BUCKET> (mounted read-only)
+<EDDY_SERVICE_ACCOUNT> -> object create/read on <OUTPUT_BUCKET> (mounted writable)
+<DEPLOYER_PRINCIPAL>   -> job developer/admin role for the target jobs
+<DEPLOYER_PRINCIPAL>   -> permission to act as <EDDY_SERVICE_ACCOUNT>
 ```
 
-## Recommended Cloud Test Order
+miaproc itself performs no credential lookup. Do not store service account
+keys in the repository and do not mount cloud SDK configuration into the
+container; it is not needed.
 
-Start with silver dry-run. This reads BigQuery and writes local artifacts
-inside the container without writing BigQuery tables, running validation SQL,
-merging, or advancing watermarks. The dry-run is the safest operator-side
-check before any mutating write.
+## Recommended Test Order
 
-```bash
-docker run --rm \
-  -v "$PWD/out:/out" \
-  -v "$HOME/.config/gcloud:/root/.config/gcloud:ro" \
-  -e GOOGLE_CLOUD_PROJECT=<BILLING_PROJECT> \
-  <IMAGE_URI> \
-  miaproc eddy run-bigquery-silver \
-    --bq-input-project <INPUT_PROJECT> \
-    --bq-input-dataset <INPUT_DATASET> \
-    --bq-flux-table <FLUX_TABLE> \
-    --bq-biomet-table <BIOMET_TABLE> \
-    --bq-billing-project <BILLING_PROJECT> \
-    --group-column <GROUP_COLUMN> \
-    --bq-output-project <OUTPUT_PROJECT> \
-    --bq-output-dataset <OUTPUT_DATASET> \
-    --bq-stage-table <SILVER_STAGE_TABLE> \
-    --bq-control-dataset <CONTROL_DATASET> \
-    --stage-payload-dry-run-dir /out/silver_dry_run \
-    --output-table /out/silver.parquet \
-    --output-run-json /out/silver_run.json
-```
+1. Local Docker, no network: run the CSV user path or the Parquet path in
+   [`../docker/README.md`](../docker/README.md) with read-only input mounts
+   and separate writable run directories; run `validate-run` on each run.
+2. Mounted storage, disposable prefix: run silver and gold into a
+   disposable output prefix on the actual mount (for example Cloud Storage
+   FUSE) with unique run names. Check `validate-run`, then read the
+   published Parquet tables and run JSONs. Exercise a deliberate failure
+   (for example a too-small `--scratch-max-bytes`) and confirm no manifest
+   is published and a retry with a new run name succeeds.
+3. Batch job: deploy the example in
+   [`cloudrun/eddy-split-jobs.example.yaml`](cloudrun/eddy-split-jobs.example.yaml)
+   against the disposable prefix, then wire the downstream load to consume
+   only validated runs.
 
-Inspect `/out/silver_dry_run/stage_payload_metadata.json` before any mutating
-write. Expected load-bearing fields:
-
-```text
-columns_unique: true
-duplicate_columns: []
-missing_input_columns: []
-bigquery_write_attempted: false
-validation_sql_attempted: false
-merge_attempted: false
-watermark_advanced: false
-```
-
-Expected source-truth columns under `columns` (a subset, depending on the
-source-table shape):
+Expected source-truth columns in a Parquet silver (a subset, depending on
+the source shape):
 
 ```text
 primary_key, site_id, timestamp,
 co2_flux, qc_co2_flux, air_temperature_c, u_star, VPD_hpa,
 SWIN_1_1_1, P_RAIN_1_1_1, RH_1_1_1,
-RH                  (only when the flux table carries it),
-rH_norm_s           (only when a divergent derived humidity is detected),
+RH                  (only when the flux input carries it),
+rH_norm_s           (only when a divergent duplicate humidity is detected),
 H, qc_H, LE, qc_LE,
 filename, DOY, daytime   (only when present in the source)
 ```
 
 No internal-name passthroughs (`DateTime`, `NEE`, `QC_NEE`, `Tair`, `USTAR`,
-`VPD`, `Rg`, `P_RAIN`, `rH`) should appear in the silver payload `columns`.
+`VPD`, `Rg`, `P_RAIN`, `rH`) should appear in Parquet silver or gold.
 
-Only after dry-run passes should your team run the mutating silver writeback
-by removing `--stage-payload-dry-run-dir` and confirming the stage / control /
-final targets are correct.
+## Publication and retry safety
 
-Then run gold dry-run, followed by gold writeback only when the silver step is
-accepted. The gold dry-run reconstructs the internal calc frame from the
-source-truth silver `timestamp` and dispatches the selected backend without
-writing the gold stage/final/control tables.
-
-## Write Safety
-
-The package rejects writes to the production project name `manglaria` by
-default (`BigQueryWritebackConfig.forbidden_write_projects`). Stage/final
-writes should target a non-production / write-authorized project such as
-staging unless your governance process explicitly changes that invariant.
-
-Do not store service account JSON keys in the repository. Use Workload
-Identity, attached Cloud Run service accounts, or operator-local credentials
-outside git.
-
-## Disposable BigQuery smoke commands (M35)
-
-Before pinning a production schedule, run the disposable stage-write smoke
-to confirm the current Docker build reads BigQuery and writes a
-BigQuery-compatible silver/gold stage payload. Always use a timestamped
-suffix so the smoke target is unique and easy to delete; never write to
-canonical tables.
-
-```bash
-SMOKE_SUFFIX="m35_smoke_$(date -u +%Y%m%d%H%M%S)"
-
-# Silver disposable stage-write smoke (no MERGE; no final table):
-docker run --rm \
-  -v "$HOME/.config/gcloud:/root/.config/gcloud:ro" \
-  -v "$PWD/.runs/m35:/out" \
-  -e GOOGLE_CLOUD_PROJECT=manglaria-staging \
-  <IMAGE_URI> \
-  miaproc eddy run-bigquery-silver \
-    --bq-input-project manglaria-staging \
-    --bq-input-dataset manglaria_lakehouse_ds \
-    --bq-flux-table carbon_flux_eddycovariance \
-    --bq-biomet-table carbon_flux_biomet \
-    --bq-billing-project manglaria-staging \
-    --group-column site_id \
-    --bq-output-project manglaria-staging \
-    --bq-output-dataset manglaria_lakehouse_ds \
-    --bq-stage-table cf_s2_silver_stage_${SMOKE_SUFFIX} \
-    --bq-control-dataset _orch \
-    --output-table /out/silver.parquet \
-    --output-run-json /out/silver_run.json
-
-# Gold disposable stage-write smoke (no --bq-allow-final-merge):
-docker run --rm \
-  -v "$HOME/.config/gcloud:/root/.config/gcloud:ro" \
-  -v "$PWD/.runs/m35:/out" \
-  -e GOOGLE_CLOUD_PROJECT=manglaria-staging \
-  <IMAGE_URI> \
-  miaproc eddy run-bigquery-gold \
-    --engine reddyproc-reference \
-    --bq-input-project manglaria-staging \
-    --bq-input-dataset manglaria_lakehouse_ds \
-    --bq-silver-table cf_s2_silver_stage_${SMOKE_SUFFIX} \
-    --bq-billing-project manglaria-staging \
-    --group-column site_id \
-    --repo-root /app \
-    --bq-output-project manglaria-staging \
-    --bq-output-dataset manglaria_lakehouse_ds \
-    --bq-stage-table cf_s2_gold_stage_${SMOKE_SUFFIX} \
-    --bq-final-table cf_s2_gold_final_${SMOKE_SUFFIX} \
-    --bq-control-dataset _orch \
-    --output-table /out/gold.parquet \
-    --output-diagnostics-json /out/gold_diag.json \
-    --output-run-json /out/gold_run.json
-
-# Schema sanity check + cleanup:
-bq show --schema manglaria-staging:manglaria_lakehouse_ds.cf_s2_silver_stage_${SMOKE_SUFFIX} \
-  | python -c "import json,sys; cols=[f['name'] for f in json.load(sys.stdin)]; print('cols', len(cols), 'casefold-unique', len({c.casefold() for c in cols}))"
-bq rm -f -t manglaria-staging:manglaria_lakehouse_ds.cf_s2_silver_stage_${SMOKE_SUFFIX}
-bq rm -f -t manglaria-staging:manglaria_lakehouse_ds.cf_s2_gold_stage_${SMOKE_SUFFIX}
-bq rm -f -t manglaria-staging:manglaria_lakehouse_ds.cf_s2_gold_final_${SMOKE_SUFFIX}
-```
-
-`--bq-allow-final-merge` is intentionally absent. If a disposable
-final-table MERGE is required to exercise the merge path, gate it
-behind the explicit operator opt-in
-`MIAPROC_M35_ALLOW_DISPOSABLE_GOLD_MERGE=1` and verify the merge
-target is always the `cf_s2_gold_final_${SMOKE_SUFFIX}` disposable
-table.
+- Each invocation owns one fresh `--run-dir`; an existing directory, outputs
+  outside it and overlap with inputs are refused (exit 3).
+- The completion manifest `_MIAPROC_RUN_COMPLETE.json` is written last and
+  is the publication point. Exit 5 or an unknown status can coexist with a
+  valid run: decide with `validate-run`.
+- Retries always use a new run name; never delete or overwrite earlier runs.
+- An existence check is not a lock; the orchestrator keeps run names
+  exclusive. There is no atomic publication across several objects.
+- FUSE mounts have incomplete POSIX semantics and caches; each driver and
+  its flags need qualification. Budget memory for Python, R, scratch and the
+  driver together. Details: [`../docs/RUN_PUBLICATION.md`](../docs/RUN_PUBLICATION.md).
 
 ## Deployment Notes
 
-- This handoff does not pin a pushed image digest because this pass does not
-  publish an image. The deployment team is the build/publish owner.
-- Use the checked-in Dockerfile from the forward-facing repo, not the
-  development workspace Dockerfile.
-- Keep deployment-specific environment variables, service account names, and
-  target table names in your cloud deployment system, not in source code.
+- This handoff does not pin an image digest because this repository does
+  not publish images. The deployment team is the build/publish owner.
+- Keep deployment-specific values (service accounts, buckets, run naming)
+  in your deployment system, not in source code.
 - Cloud Run Job YAML files under `06_infra/cloudrun/` are examples with
-  placeholders. They are not pinned production manifests; replace placeholders
-  with your environment-specific values before applying.
-- Under M35 the eddy handoff and Cloud Run examples describe the widened
-  M34 carry-forward shape: silver/gold stage payloads carry every
-  unique carbon-flux bronze column. Before pinning a production
-  schedule, run the disposable smoke above and capture the run JSON
-  + schema sanity check.
+  placeholders, not production manifests.
+- Live cloud qualification (mount behavior, permissions, resources,
+  scheduling) is engineer-owned and has not been performed here.

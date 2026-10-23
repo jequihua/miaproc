@@ -11,6 +11,10 @@ _ALLOWED_FORMATS = (
     "%Y%m%d %H:%M",
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%d %H:%M",
+    # M002-S02 r3: fractional seconds (lubridate's HMS accepts them too), so a
+    # CSV directory mixing ``HH:MM`` and ``HH:MM:SS.ffffff`` files loses no rows.
+    "%Y%m%d %H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S.%f",
 )
 
 
@@ -42,8 +46,102 @@ def _parse_timestamp_col(s: pd.Series) -> pd.Series:
     Uses pandas' format inference so trailing timezone abbreviations like
     ``UTC`` are honored. Unparseable values become ``NaT``. The returned
     series preserves the input's index.
+
+    M002-S02 r3 (mixed precision): pandas infers one format from the first
+    element, so strings of another precision (``...:00`` next to
+    ``...:00.000000``) would become ``NaT``. Only those failed, non-empty
+    elements are parsed again element-wise (``format="mixed"``); values the
+    first pass parsed are unchanged. A retry whose timezone awareness does not
+    match the first pass is not applied (those rows stay unparsed and are
+    reported by :func:`instant_drop_counts`).
     """
-    return pd.to_datetime(s, errors="coerce")
+    parsed = pd.to_datetime(s, errors="coerce")
+    if pd.api.types.is_datetime64_any_dtype(s) or not pd.api.types.is_datetime64_any_dtype(parsed):
+        return parsed
+    text = s.astype("string").str.strip()
+    failed = parsed.isna() & text.notna() & (text != "")
+    if not failed.any():
+        return parsed
+    try:
+        retry = pd.to_datetime(s[failed], errors="coerce", format="mixed")
+    except (ValueError, TypeError):  # e.g. mixed timezones within the retried values
+        return parsed
+    if not pd.api.types.is_datetime64_any_dtype(retry) or not retry.notna().any():
+        return parsed
+    if not parsed.notna().any():
+        return retry.reindex(s.index)
+    first_tz, retry_tz = parsed.dt.tz, retry.dt.tz
+    if (first_tz is None) != (retry_tz is None):
+        return parsed
+    if retry_tz is not None:
+        retry = retry.dt.tz_convert(first_tz)
+    out = parsed.copy()
+    out.loc[failed] = retry.dt.as_unit(out.dt.unit)
+    return out
+
+
+def _parse_instants(
+    df: pd.DataFrame,
+    *,
+    has_legacy: bool,
+    date_col: str,
+    time_col: str,
+    timestamp_col: str,
+    tz_in: str,
+    tz_out: str,
+) -> pd.Series:
+    """Per-row observation instants exactly as :func:`create_datetime` builds them."""
+    if has_legacy:
+        dt_str = df[date_col].astype(str).str.strip() + " " + df[time_col].astype(str).str.strip()
+        parsed = _parse_datetime_multi(dt_str)
+    else:
+        parsed = _parse_timestamp_col(df[timestamp_col])
+
+    # Apply tz_in then convert to tz_out:
+    # - If timestamps are "naive" but represent tz_in, localize
+    # - If already tz-aware (CSV with timezone suffix), normalize
+    if parsed.dt.tz is None:
+        parsed = parsed.dt.tz_localize(tz_in, ambiguous="NaT", nonexistent="NaT")
+    else:
+        parsed = parsed.dt.tz_convert(tz_in)
+
+    return parsed.dt.tz_convert(tz_out)
+
+
+def instant_drop_counts(
+    df: pd.DataFrame,
+    *,
+    date_col: str = "date",
+    time_col: str = "time",
+    timestamp_col: str = "timestamp",
+    tz_in: str = "UTC",
+    tz_out: str = "UTC",
+    unit_marker: str = "[HH:MM]",
+) -> dict[str, int]:
+    """Rows :func:`create_datetime` drops, by reason (read-only, for reporting).
+
+    ``unparsed``: rows whose time does not parse (stage 1 drops them with a
+    warning); a legacy units row (``time == "[HH:MM]"``, removed earlier by
+    ``drop_unit_rows``) is not counted. ``duplicate``: parsed instants that
+    repeat an earlier row (stage 1 keeps the first). Both are ``0`` when the
+    frame has no time column.
+    """
+    has_legacy = date_col in df.columns and time_col in df.columns
+    if not has_legacy and timestamp_col not in df.columns:
+        return {"unparsed": 0, "duplicate": 0}
+    if time_col in df.columns:
+        df = df.loc[df[time_col].astype(str).str.strip() != unit_marker]
+    parsed = _parse_instants(
+        df, has_legacy=has_legacy, date_col=date_col, time_col=time_col,
+        timestamp_col=timestamp_col, tz_in=tz_in, tz_out=tz_out,
+    )
+    return {"unparsed": int(parsed.isna().sum()),
+            "duplicate": int(parsed.dropna().duplicated().sum())}
+
+
+def duplicate_instant_count(df: pd.DataFrame, **kwargs) -> int:
+    """Rows :func:`create_datetime` drops as repeated instants (it keeps the first)."""
+    return instant_drop_counts(df, **kwargs)["duplicate"]
 
 
 def create_datetime(
@@ -91,22 +189,11 @@ def create_datetime(
         # Ensure string-like and trim
         out[date_col] = out[date_col].astype(str).str.strip()
         out[time_col] = out[time_col].astype(str).str.strip()
-        dt_str = out[date_col] + " " + out[time_col]
-        parsed = _parse_datetime_multi(dt_str)
-    else:
-        parsed = _parse_timestamp_col(out[timestamp_col])
 
-    # Apply tz_in then convert to tz_out:
-    # - If timestamps are "naive" but represent tz_in, localize
-    # - If already tz-aware (CSV with timezone suffix), normalize
-    if parsed.dt.tz is None:
-        parsed = parsed.dt.tz_localize(tz_in, ambiguous="NaT", nonexistent="NaT")
-    else:
-        parsed = parsed.dt.tz_convert(tz_in)
-
-    parsed = parsed.dt.tz_convert(tz_out)
-
-    out["DateTime"] = parsed
+    out["DateTime"] = _parse_instants(
+        out, has_legacy=has_legacy, date_col=date_col, time_col=time_col,
+        timestamp_col=timestamp_col, tz_in=tz_in, tz_out=tz_out,
+    )
 
     if drop_unparsed:
         before = len(out)

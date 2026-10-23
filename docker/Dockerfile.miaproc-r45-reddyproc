@@ -1,15 +1,44 @@
-# miaproc CLI runtime image - standalone publish-repo layout.
+# miaproc CLI runtime image: controlled R 4.5.1 + REddyProc 1.3.4 + rpy2.
 #
-# Build from the public package repo root:
+# PRODUCT image build. The build context is the package root (the directory
+# that contains pyproject.toml, src/, tests/ and docker/). From that directory:
 #
 #   docker build -f docker/Dockerfile.miaproc-r45-reddyproc \
-#       -t miaproc:cli-r45 .
+#       -t miaproc-eddy-parquet:product-local .
 #
-# This Dockerfile is intentionally different from the artifact-workspace
-# Dockerfile in the development repo: the published repo has pyproject.toml,
-# src/, tests/, docs/, and examples/ at the repo root, not under 08_pkg/.
+# From the miaproc-dev-parquet project root the equivalent argv is:
+#
+#   docker build -f 08_pkg/miaproc/docker/Dockerfile.miaproc-r45-reddyproc \
+#       -t miaproc-eddy-parquet:product-local 08_pkg/miaproc
+#
+# In the miaproc-dev-parquet development project the product image is built
+# only by 06_infra/verification/record_product_image.py, which records the
+# image ID, build argv and build-input hashes. The current record is the
+# Google-free M002-S05 image (tag miaproc-eddy-parquet:product-m002-s05,
+# 06_infra/verification/product_image_m002.json), addressed by ID only by
+# `verify_integration.py --phase M002`. The superseded M001-S03 record
+# (product_image.json, built with the removed `bigquery` extra) is kept as
+# history; `--phase M001` fails closed on its build-input drift.
+#
+# A build bakes in the current package source and unpinned apt/CRAN Archive
+# downloads, so it never reproduces the FROZEN comparison runtime recorded in
+# 01_data/baseline/runtime_container.json, which verify_integration.py
+# addresses only by image ID. Do not reuse the frozen image's tags
+# (miaproc-eddy-parquet:r45-m001-s01, :baseline-frozen-m001-s01) for builds.
+#
+# Reproducibility pins (M001-S01):
+# - base image by digest (rocker/r-ver:4.5.1, multi-arch index digest);
+# - every R package from renv.lock (exact versions, restored from CRAN into
+#   the project-scoped library used by the R preflight; no global R library
+#   is written and the renv cache is disabled so files are real copies);
+# - every Python package from docker/constraints-py312.txt (the versions of
+#   the qualified project venv), including rpy2 and the wheel build backend;
+#   since M002-S05 (D016) without the pins of the removed `bigquery` extra,
+#   so the image contains no Google SDK, gRPC, protobuf or auth packages.
+# The Dockerfile-specific ignore file keeps host caches/egg-info out of the
+# context.
 
-FROM rocker/r-ver:4.5.1
+FROM rocker/r-ver:4.5.1@sha256:03b023fbf7b1b24ac1bb8b2ac5fd7e15a767e67b40ff50c155e328110981c2aa
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -25,6 +54,7 @@ RUN apt-get update \
         python3-dev \
         python3-pip \
         build-essential \
+        gfortran \
         ca-certificates \
         git \
         curl \
@@ -49,21 +79,71 @@ ENV MIAPROC_REPO_ROOT=/app
 ENV R_LIBS_USER=/app/renv/library/R-4.5/x86_64-pc-linux-gnu
 RUN mkdir -p "${R_LIBS_USER}"
 
+WORKDIR /app
 COPY renv.lock /app/renv.lock
 
-RUN R -q -e "install.packages('remotes', lib=Sys.getenv('R_LIBS_USER'), repos='https://cloud.r-project.org')" \
-    && R -q -e "remotes::install_version('REddyProc', version='1.3.4', lib=Sys.getenv('R_LIBS_USER'), repos='https://cloud.r-project.org', upgrade='never')" \
-    && R -q -e ".libPaths(c(Sys.getenv('R_LIBS_USER'), .libPaths())); stopifnot(packageVersion('REddyProc') == '1.3.4'); cat('REddyProc OK at', find.package('REddyProc'), '\n')"
+# renv bootstraps from a throwaway library, then restores the exact lockfile
+# versions into the project-scoped library. One documented substitution:
+# renv.lock records Rcpp 1.1.1-1, which CRAN no longer serves (neither current
+# nor Archive); its CRAN successor patch Rcpp 1.1.1-1.1 is installed from the
+# CRAN Archive and restored through an effective lockfile that differs from
+# renv.lock only in that record (kept at /app/renv/renv.lock.effective).
+# Every lockfile record (renv itself aside) is verified to the exact version.
+RUN mkdir -p /tmp/renv-boot \
+    && RENV_CONFIG_CACHE_ENABLED=FALSE MAKEFLAGS="-j4" R -q -e "\
+        lib <- Sys.getenv('R_LIBS_USER'); \
+        rcpp_tgz <- '/tmp/Rcpp_1.1.1-1.1.tar.gz'; \
+        download.file('https://cloud.r-project.org/src/contrib/Archive/Rcpp/Rcpp_1.1.1-1.1.tar.gz', rcpp_tgz, mode = 'wb'); \
+        install.packages(rcpp_tgz, lib = lib, repos = NULL, type = 'source'); \
+        stopifnot(packageVersion('Rcpp', lib.loc = lib) == package_version('1.1.1-1.1')); \
+        install.packages('renv', lib = '/tmp/renv-boot', repos = 'https://cloud.r-project.org'); \
+        library(renv, lib.loc = '/tmp/renv-boot'); \
+        options(renv.config.pak.enabled = FALSE); \
+        lf <- renv::lockfile_read('/app/renv.lock'); \
+        lf\$Packages\$Rcpp\$Version <- '1.1.1-1.1'; \
+        renv::lockfile_write(lf, file = '/app/renv/renv.lock.effective'); \
+        renv::restore(project = '/app', lockfile = '/app/renv/renv.lock.effective', library = lib, \
+                      prompt = FALSE, clean = FALSE); \
+        expected <- vapply(lf\$Packages, function(r) r\$Version, ''); \
+        for (p in setdiff(names(expected), 'renv')) { \
+            v <- packageVersion(p, lib.loc = lib); \
+            if (v != package_version(expected[[p]])) stop('version mismatch for ', p, ': ', v); \
+        }; \
+        cat('renv.lock restored:', length(expected), 'records checked\n')" \
+    && rm -f /tmp/Rcpp_1.1.1-1.1.tar.gz \
+    && rm -rf /tmp/renv-boot /app/renv/staging \
+    && R -q -e "\
+        .libPaths(c(Sys.getenv('R_LIBS_USER'), .libPaths())); \
+        stopifnot(getRversion() == '4.5.1'); \
+        stopifnot(packageVersion('REddyProc') == '1.3.4'); \
+        cat('REddyProc OK at', find.package('REddyProc'), '\n')"
 
-WORKDIR /app
-
+COPY docker/constraints-py312.txt /app/docker/constraints-py312.txt
 COPY pyproject.toml README.md LICENSE /app/
 COPY src /app/src
+
+RUN PIP_CONSTRAINT=/app/docker/constraints-py312.txt /opt/miaproc-venv/bin/pip install pip==25.0.1 \
+    && PIP_CONSTRAINT=/app/docker/constraints-py312.txt /opt/miaproc-venv/bin/pip install setuptools wheel \
+    && PIP_CONSTRAINT=/app/docker/constraints-py312.txt /opt/miaproc-venv/bin/pip install -e "/app[dev,hesseflux,reddyproc]" \
+    && (/opt/miaproc-venv/bin/pip check > /app/docker/pip-check.txt 2>&1 || true) \
+    && /opt/miaproc-venv/bin/pip freeze --all > /app/docker/pip-freeze.txt
+
+# Tests walk up from tests/ to find 06_infra/schemas (lineage contract).
+COPY 06_infra/schemas /app/06_infra/schemas
 COPY tests /app/tests
 COPY docs /app/docs
 COPY examples /app/examples
+# The baked test suite reads this Dockerfile (install-extras check).
+COPY docker/Dockerfile.miaproc-r45-reddyproc /app/docker/Dockerfile.miaproc-r45-reddyproc
 
-RUN /opt/miaproc-venv/bin/pip install --upgrade pip \
-    && /opt/miaproc-venv/bin/pip install -e "/app[dev,hesseflux,reddyproc,bigquery]"
+# D022: retain the committed documentation required by the full baked suite.
+COPY testing_strategy.md backend_contract.md /app/
+COPY docker/README.md /app/docker/README.md
+COPY 06_infra/cloudrun /app/06_infra/cloudrun
+COPY 06_infra/local_setup.md 06_infra/deployment.md 06_infra/eddy_handoff.md 06_infra/architecture.md /app/06_infra/
+COPY 09_ops/runbooks.md 09_ops/monitoring.md 09_ops/scheduled_jobs.md /app/09_ops/
+
+# apt packages are not version-pinned; record what this image contains.
+RUN dpkg-query -W -f='${Package}=${Version}\n' | LC_ALL=C sort > /app/docker/dpkg-packages.txt
 
 CMD ["miaproc", "--help"]

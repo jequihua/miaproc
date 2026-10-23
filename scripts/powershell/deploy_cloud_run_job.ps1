@@ -5,7 +5,8 @@
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File `
 #     scripts/powershell/deploy_cloud_run_job.ps1 `
-#     -Manifest 06_infra/cloudrun/miaproc-eddy-rbrl-stage.yaml -Execute
+#     -Manifest my-silver-job.yaml -Execute
+# (one job split out of 06_infra/cloudrun/eddy-split-jobs.example.yaml)
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]

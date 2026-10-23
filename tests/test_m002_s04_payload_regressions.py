@@ -1,708 +1,40 @@
-"""Tests for the BigQuery writeback / merge-control layer (M8).
+"""M002-S04 storage-neutral replacements for retired BigQuery-module tests (D011).
 
-The ``google-cloud-bigquery`` extra may not be installed in the
-default CI slice, so these tests:
+The silver/gold payload, column-uniqueness and humidity-collision
+assertions formerly in ``tests/test_eddy_bigquery_writeback.py`` (which
+reached the same objects through the deleted
+``miaproc.eddy.bigquery_writeback`` re-exports) run here unchanged
+against :mod:`miaproc.eddy.payload`:
 
-- exercise the pure SQL/DDL builders without any BigQuery import;
-- inject a fake client that satisfies the small subset of the
-  ``Client`` API the orchestration uses (``query``,
-  ``load_table_from_dataframe``, ``get_table``, ``insert_rows_json``).
+- ``column_field_key`` is the former ``bigquery_field_key`` (casefold
+  key used for the case-insensitive uniqueness invariant);
+- ``prepare_gold_stage_payload`` is the former ``prepare_stage_dataframe``
+  without the BigQuery-only source-flux join, final-table target-column
+  filter and target-type cast, which left with the transport;
+- the source-identity assertion of the former source-flux join is kept
+  on the file-workflow gold payload (``prepare_local_gold_payload``),
+  which carries source ``primary_key`` / ``site_id`` from silver.
 
-The fake client also records every operation in submission order so
-tests can assert that the writeback orchestration ran the steps in
-the right sequence and never attempted a forbidden write.
+No Google/BigQuery module is imported here.
 """
 from __future__ import annotations
 
-from types import SimpleNamespace
-from typing import Any
-
+import numpy as np
 import pandas as pd
 import pytest
 
-from miaproc.eddy import bigquery_writeback as wb
-from miaproc.eddy.bigquery_writeback import (
-    BigQueryWritebackConfig,
+from miaproc.eddy.payload import (
     COLUMN_COLLISION_ATTRS_KEY,
     DuplicateStageColumnsError,
     HUMIDITY_DERIVED_RENAME,
     HUMIDITY_SOURCE_COLUMN,
-    WritebackResult,
-    WritebackValidationError,
-    bigquery_field_key,
-    build_merge_statement,
-    build_validation_query,
+    column_field_key,
     ensure_unique_stage_columns,
+    prepare_gold_stage_payload,
+    prepare_local_gold_payload,
     prepare_silver_stage_payload,
-    prepare_stage_dataframe,
-    render_runs_table_ddl,
-    render_watermark_table_ddl,
-    run_writeback,
     validate_source_columns_unique,
 )
-
-
-# ---------------------------------------------------------------------------
-# Helpers / fakes
-# ---------------------------------------------------------------------------
-
-
-def _make_cfg(**overrides: Any) -> BigQueryWritebackConfig:
-    base = dict(
-        output_project="manglaria-staging",
-        output_dataset="manglaria_lakehouse_ds",
-        stage_table="cf_s2_stage_test",
-        control_dataset="_orch",
-        final_table="carbon_flux_eddycovariance_s2_filt_1",
-        allow_final_merge=False,
-        run_id="local-20260426T200000Z-1234",
-        site_id="RBRL",
-    )
-    base.update(overrides)
-    return BigQueryWritebackConfig(**base)
-
-
-def _make_processed_df(n: int = 4) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            "primary_key": [f"pk-{i}" for i in range(n)],
-            "site_id": ["RBRL"] * n,
-            "timestamp": pd.date_range(
-                "2025-08-01", periods=n, freq="30min", tz="UTC"
-            ),
-            "NEE_f": [0.1, 0.2, 0.3, 0.4],
-            "Reco": [1.0, 1.1, 1.2, 1.3],
-            "GPP": [0.0, 0.5, 1.0, 1.5],
-        }
-    )
-
-
-class _FakeQueryJob:
-    def __init__(self, rows: list[Any] | None = None,
-                 num_dml_affected_rows: int | None = None):
-        self._rows = rows or []
-        self.num_dml_affected_rows = num_dml_affected_rows
-
-    def result(self):
-        return iter(self._rows)
-
-
-class _FakeLoadJob:
-    def result(self):
-        return None
-
-
-class _FakeTable:
-    def __init__(self, schema: list[str]):
-        self.schema = [SimpleNamespace(name=name) for name in schema]
-
-
-class _FakeBQClient:
-    """Minimal in-memory fake of ``google.cloud.bigquery.Client``.
-
-    Records every call in ``self.operations`` so tests can assert
-    sequence + arguments. Configurable per-test via:
-
-    - ``query_handler(sql, job_config)`` -> ``_FakeQueryJob``
-    - ``load_handler(df, table_ref, job_config)`` -> ``_FakeLoadJob``
-    - ``schema_for(table_ref)`` -> list[str]
-    - ``insert_handler(table, rows)`` -> list (errors)
-    """
-
-    def __init__(self):
-        self.operations: list[tuple[str, Any]] = []
-        self._inserted_rows: list[dict[str, Any]] = []
-        self._schema_for: dict[str, list[str]] = {}
-        self.query_handler = self._default_query_handler
-        self.load_handler = lambda df, table_ref, job_config=None: _FakeLoadJob()
-        self.insert_handler = lambda table, rows: []
-
-    def set_schema(self, table_ref: str, columns: list[str]) -> None:
-        self._schema_for[table_ref] = columns
-
-    @property
-    def inserted_rows(self) -> list[dict[str, Any]]:
-        return list(self._inserted_rows)
-
-    def _default_query_handler(self, sql: str, job_config: Any = None):
-        return _FakeQueryJob()
-
-    # --- BQ Client surface used by writeback ---------------------------------
-    def query(self, sql: str, job_config: Any = None):
-        self.operations.append(("query", (sql, job_config)))
-        return self.query_handler(sql, job_config)
-
-    def load_table_from_dataframe(self, df, table_ref, job_config=None):
-        self.operations.append(
-            ("load_table_from_dataframe", (table_ref, len(df), job_config))
-        )
-        return self.load_handler(df, table_ref, job_config)
-
-    def get_table(self, table_ref):
-        self.operations.append(("get_table", table_ref))
-        cols = self._schema_for.get(table_ref, ["primary_key", "site_id",
-                                                "timestamp", "NEE_f"])
-        return _FakeTable(cols)
-
-    def insert_rows_json(self, table, rows):
-        self.operations.append(("insert_rows_json", len(rows)))
-        self._inserted_rows.extend(rows)
-        return self.insert_handler(table, rows)
-
-
-# ---------------------------------------------------------------------------
-# Config validation
-# ---------------------------------------------------------------------------
-
-
-class TestPrepareStageDataframe:
-    """M10 schema-mapping helper that aligns the M6 backend output with
-    the live ``_s2_filt_1`` extended source-flux schema (guide 001 §2.1)."""
-
-    def _processed(self, n: int = 3) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "DateTime": pd.date_range(
-                    "2025-08-01", periods=n, freq="30min", tz="UTC"
-                ),
-                "NEE": [0.1, 0.2, 0.3],
-                "NEE_f": [0.11, 0.21, 0.31],
-                "NEE_fqc": [0, 0, 0],
-                "GPP": [0.0, 1.0, 2.0],
-                "Reco": [1.0, 1.0, 1.0],
-                "Tair": [20.0, 21.0, 22.0],
-                "Tair_f": [20.5, 21.5, 22.5],
-                "Rg": [0.0, 100.0, 200.0],
-                "Rg_f": [0.0, 100.0, 200.0],
-                "VPD": [5.0, 6.0, 7.0],
-                "VPD_f": [5.1, 6.1, 7.1],
-                "USTAR": [0.2, 0.3, 0.4],
-            }
-        )
-
-    def _source_flux(self) -> pd.DataFrame:
-        # Two of three processed timestamps have a source row; the third
-        # is a regularized insert with no source primary_key.
-        return pd.DataFrame(
-            {
-                "site_id": ["RBRL", "RBRL"],
-                "timestamp": pd.to_datetime(
-                    ["2025-08-01 00:00:00+00:00", "2025-08-01 00:30:00+00:00"]
-                ),
-                "primary_key": ["src-pk-A", "src-pk-B"],
-                "co2_flux": [0.1, 0.2],
-                "air_temperature": [293.15, 294.15],
-                "u_star": [0.21, 0.22],
-            }
-        )
-
-    def test_lowercase_analytical_columns_and_dateAndTime(self):
-        out = prepare_stage_dataframe(self._processed(), site_id="RBRL")
-        for col in ("nee_f", "nee_fqc", "sw_in_f", "ta_f", "vpd_f", "dateAndTime"):
-            assert col in out.columns, f"missing column {col}"
-        assert out["nee_f"].iloc[0] == 0.11  # from NEE_f
-        assert out["sw_in_f"].iloc[1] == 100.0  # from Rg_f
-        assert out["ta_f"].iloc[2] == 22.5  # from Tair_f
-        # dateAndTime is the ISO-style STRING form.
-        assert out["dateAndTime"].iloc[0] == "2025-08-01 00:00:00"
-        # Identity is materialized.
-        assert (out["site_id"] == "RBRL").all()
-        assert out["primary_key"].is_unique
-
-    def test_source_primary_key_preferred_over_synthesized(self):
-        out = prepare_stage_dataframe(
-            self._processed(),
-            site_id="RBRL",
-            source_flux_df=self._source_flux(),
-        )
-        # First two rows have source primary_key; third falls back.
-        assert out["primary_key"].iloc[0] == "src-pk-A"
-        assert out["primary_key"].iloc[1] == "src-pk-B"
-        assert out["primary_key"].iloc[2].startswith("RBRL|2025-08-01T01:00:00")
-        # Source pass-through columns are present.
-        assert "co2_flux" in out.columns
-        assert out["co2_flux"].iloc[0] == 0.1
-        # Regularized insert has NaN for source columns.
-        assert pd.isna(out["co2_flux"].iloc[2])
-
-    def test_target_columns_filter_drops_extras_keeps_identity(self):
-        target = [
-            "primary_key",
-            "site_id",
-            "timestamp",
-            "dateAndTime",
-            "nee_f",
-            "nee_fqc",
-            "sw_in_f",
-            "ta_f",
-            "vpd_f",
-            "co2_flux",
-            "air_temperature",
-        ]
-        out = prepare_stage_dataframe(
-            self._processed(),
-            site_id="RBRL",
-            source_flux_df=self._source_flux(),
-            target_columns=target,
-        )
-        # Engine-only outputs not in the target schema are dropped.
-        for dropped in ("DateTime", "NEE", "NEE_f", "GPP", "Reco", "USTAR"):
-            assert dropped not in out.columns
-        # Target-listed columns that were sourced are kept.
-        for kept in ("nee_f", "ta_f", "co2_flux", "air_temperature"):
-            assert kept in out.columns
-        # Identity triple always survives.
-        for ident in ("primary_key", "site_id", "timestamp"):
-            assert ident in out.columns
-
-    def test_caller_frames_are_not_mutated(self):
-        proc = self._processed()
-        src = self._source_flux()
-        proc_before = proc.copy(deep=True)
-        src_before = src.copy(deep=True)
-        _ = prepare_stage_dataframe(
-            proc, site_id="RBRL", source_flux_df=src,
-        )
-        pd.testing.assert_frame_equal(proc, proc_before)
-        pd.testing.assert_frame_equal(src, src_before)
-
-    def test_missing_datetime_raises(self):
-        with pytest.raises(ValueError, match="missing the 'DateTime' column"):
-            prepare_stage_dataframe(
-                pd.DataFrame({"NEE_f": [0.1]}), site_id="RBRL"
-            )
-
-    def test_target_types_cast_float_to_nullable_int(self):
-        """The M7 nullable-Int -> float64 normalization on the read side
-        leaves integer-typed source columns as floats. When the target
-        table has those columns as INT64, prepare_stage_dataframe must
-        coerce them back to pandas ``Int64`` before the stage write so
-        the live MERGE doesn't reject FLOAT64 -> INT64 implicit casts
-        (the actual M10 live blocker that surfaced as
-        ``Value of type FLOAT64 cannot be assigned to daytime``)."""
-        proc = self._processed()
-        # Build a source-flux frame with an "INT64-from-source" column
-        # that the M7 normalizer would have left as float64.
-        src = pd.DataFrame(
-            {
-                "site_id": ["RBRL", "RBRL"],
-                "timestamp": pd.to_datetime(
-                    ["2025-08-01 00:00:00+00:00",
-                     "2025-08-01 00:30:00+00:00"]
-                ),
-                "primary_key": ["src-A", "src-B"],
-                "daytime": [1.0, float("nan")],  # came from nullable Int64
-            }
-        )
-        target_types = {
-            "primary_key": "STRING",
-            "site_id": "STRING",
-            "timestamp": "TIMESTAMP",
-            "nee_fqc": "INT64",
-            "daytime": "INT64",
-        }
-        out = prepare_stage_dataframe(
-            proc, site_id="RBRL", source_flux_df=src,
-            target_columns=list(target_types) + ["dateAndTime", "nee_f"],
-            target_types=target_types,
-        )
-        assert str(out["daytime"].dtype) == "Int64"
-        assert str(out["nee_fqc"].dtype) == "Int64"
-        # NaN survives as pd.NA after the float->Int64 cast.
-        assert out["daytime"].iloc[0] == 1
-        assert pd.isna(out["daytime"].iloc[1])
-
-
-class TestConfigValidation:
-    def test_valid_config_passes_validate(self):
-        _make_cfg().validate()  # no raise
-
-    def test_forbidden_production_project_rejected(self):
-        cfg = _make_cfg(output_project="manglaria")
-        with pytest.raises(ValueError, match="forbidden project"):
-            cfg.validate()
-
-    def test_allow_final_merge_requires_final_table(self):
-        cfg = _make_cfg(final_table=None, allow_final_merge=True)
-        with pytest.raises(ValueError, match="allow_final_merge=True requires"):
-            cfg.validate()
-
-    def test_empty_required_fields_rejected(self):
-        cfg = _make_cfg(stage_table="")
-        with pytest.raises(ValueError, match="stage_table must be"):
-            cfg.validate()
-
-
-# ---------------------------------------------------------------------------
-# DDL + SQL builders
-# ---------------------------------------------------------------------------
-
-
-class TestSQLBuilders:
-    def test_runs_ddl_includes_required_columns(self):
-        cfg = _make_cfg()
-        ddl = render_runs_table_ddl(cfg)
-        for col in (
-            "run_id",
-            "started_at",
-            "finished_at",
-            "status",
-            "merge_attempted",
-            "merge_authorized",
-            "watermark_advanced",
-        ):
-            assert col in ddl
-        assert "CREATE TABLE IF NOT EXISTS" in ddl
-        assert "manglaria-staging" in ddl
-
-    def test_watermark_ddl_uses_site_id_pk(self):
-        cfg = _make_cfg()
-        ddl = render_watermark_table_ddl(cfg)
-        assert "site_id STRING NOT NULL" in ddl
-        assert "last_processed_timestamp TIMESTAMP NOT NULL" in ddl
-
-    def test_validation_query_covers_required_metrics(self):
-        cfg = _make_cfg()
-        sql = build_validation_query(cfg)
-        for piece in (
-            "COUNT(*) AS row_count",
-            "COUNTIF(site_id IS NULL) AS null_site_id",
-            "COUNTIF(timestamp IS NULL) AS null_timestamp",
-            "COUNTIF(primary_key IS NULL) AS null_primary_key",
-            "dup_site_timestamp",
-            "dup_primary_key",
-        ):
-            assert piece in sql
-
-    def test_merge_statement_keys_on_site_id_and_timestamp(self):
-        cfg = _make_cfg()
-        cols = ["primary_key", "site_id", "timestamp", "NEE_f", "Reco"]
-        sql = build_merge_statement(cfg, columns=cols)
-        assert "ON T.site_id = S.site_id AND T.timestamp = S.timestamp" in sql
-        # Non-key updates only.
-        assert "primary_key = S.primary_key" in sql
-        assert "NEE_f = S.NEE_f" in sql
-        assert "Reco = S.Reco" in sql
-        assert "site_id = S.site_id" not in sql.split("UPDATE SET")[1].split(
-            "WHEN NOT MATCHED"
-        )[0]
-        # No DELETE.
-        assert "DELETE" not in sql
-
-    def test_merge_requires_final_table(self):
-        cfg = _make_cfg(final_table=None)
-        with pytest.raises(ValueError, match="final_table must be set"):
-            build_merge_statement(cfg, columns=["site_id", "timestamp", "x"])
-
-    def test_merge_requires_non_key_columns(self):
-        cfg = _make_cfg()
-        with pytest.raises(ValueError, match="no non-key columns"):
-            build_merge_statement(cfg, columns=["site_id", "timestamp"])
-
-
-# ---------------------------------------------------------------------------
-# validate_stage_table
-# ---------------------------------------------------------------------------
-
-
-class TestValidateStageTable:
-    def _client_with_metrics(self, metrics: dict[str, Any]) -> _FakeBQClient:
-        client = _FakeBQClient()
-        row = SimpleNamespace(**metrics)
-
-        def _handler(sql, job_config=None):
-            return _FakeQueryJob(rows=[row])
-
-        client.query_handler = _handler
-        return client
-
-    def test_clean_metrics_pass(self):
-        cfg = _make_cfg()
-        client = self._client_with_metrics(
-            {
-                "row_count": 4813,
-                "null_site_id": 0,
-                "null_timestamp": 0,
-                "null_primary_key": 0,
-                "dup_site_timestamp": 0,
-                "dup_primary_key": 0,
-            }
-        )
-        metrics = wb.validate_stage_table(cfg, client=client)
-        assert metrics["row_count"] == 4813
-
-    def test_zero_rows_raises(self):
-        cfg = _make_cfg()
-        client = self._client_with_metrics(
-            {
-                "row_count": 0,
-                "null_site_id": 0,
-                "null_timestamp": 0,
-                "null_primary_key": 0,
-                "dup_site_timestamp": 0,
-                "dup_primary_key": 0,
-            }
-        )
-        with pytest.raises(WritebackValidationError) as exc:
-            wb.validate_stage_table(cfg, client=client)
-        assert exc.value.metrics["row_count"] == 0
-
-    def test_duplicate_keys_raise(self):
-        cfg = _make_cfg()
-        client = self._client_with_metrics(
-            {
-                "row_count": 100,
-                "null_site_id": 0,
-                "null_timestamp": 0,
-                "null_primary_key": 0,
-                "dup_site_timestamp": 2,
-                "dup_primary_key": 5,
-            }
-        )
-        with pytest.raises(WritebackValidationError) as exc:
-            wb.validate_stage_table(cfg, client=client)
-        assert "dup_site_timestamp=2" in str(exc.value)
-        assert "dup_primary_key=5" in str(exc.value)
-
-
-# ---------------------------------------------------------------------------
-# merge_stage_into_final
-# ---------------------------------------------------------------------------
-
-
-class TestMergeStageIntoFinal:
-    def test_merge_refused_without_explicit_authorization(self):
-        cfg = _make_cfg(allow_final_merge=False)
-        client = _FakeBQClient()
-        with pytest.raises(RuntimeError, match="allow_final_merge=True"):
-            wb.merge_stage_into_final(cfg, client=client)
-        # And the client must NOT have been asked to run any SQL.
-        assert all(op[0] != "query" for op in client.operations)
-
-    def test_merge_uses_stage_schema_and_returns_counts(self):
-        cfg = _make_cfg(allow_final_merge=True)
-        client = _FakeBQClient()
-        client.set_schema(
-            "manglaria-staging.manglaria_lakehouse_ds.cf_s2_stage_test",
-            ["primary_key", "site_id", "timestamp", "NEE_f", "Reco"],
-        )
-        client.query_handler = lambda sql, job_config=None: _FakeQueryJob(
-            num_dml_affected_rows=42
-        )
-        out = wb.merge_stage_into_final(cfg, client=client)
-        assert out["inserted"] == 42
-        # MERGE SQL was issued exactly once.
-        merge_calls = [op for op in client.operations if op[0] == "query"]
-        assert len(merge_calls) == 1
-        merge_sql = merge_calls[0][1][0]
-        assert merge_sql.startswith("MERGE")
-        assert "ON T.site_id = S.site_id AND T.timestamp = S.timestamp" in merge_sql
-
-
-# ---------------------------------------------------------------------------
-# run_writeback orchestrator
-# ---------------------------------------------------------------------------
-
-
-class TestRunWriteback:
-    def _patch_validate_pass(self, monkeypatch, metrics=None):
-        metrics = metrics or {
-            "row_count": 4,
-            "null_site_id": 0,
-            "null_timestamp": 0,
-            "null_primary_key": 0,
-            "dup_site_timestamp": 0,
-            "dup_primary_key": 0,
-        }
-        monkeypatch.setattr(
-            wb, "validate_stage_table", lambda cfg, client=None: metrics
-        )
-        return metrics
-
-    def test_stage_only_default_does_not_merge_or_advance_watermark(
-        self, monkeypatch
-    ):
-        cfg = _make_cfg(allow_final_merge=False)
-        client = _FakeBQClient()
-        client.set_schema(
-            "manglaria-staging._orch.cf_s2_runs",
-            ["run_id", "started_at", "finished_at", "status",
-             "stage_rows", "merge_attempted", "merge_authorized",
-             "watermark_advanced"],
-        )
-        self._patch_validate_pass(monkeypatch)
-
-        df = _make_processed_df()
-        result = run_writeback(
-            df, cfg, run_id="local-x", site_id="RBRL",
-            started_at="2026-04-26T20:00:00+00:00",
-            client=client,
-        )
-        assert isinstance(result, WritebackResult)
-        assert result.status == wb.RUN_STATUS_STAGE_ONLY_SUCCEEDED
-        assert result.merge_attempted is False
-        assert result.merge_authorized is False
-        assert result.watermark_advanced is False
-        # The runs row was inserted with the stage-only-succeeded status.
-        assert client.inserted_rows
-        assert client.inserted_rows[0]["status"] == wb.RUN_STATUS_STAGE_ONLY_SUCCEEDED
-
-    def test_explicit_merge_runs_merge_and_advances_watermark(
-        self, monkeypatch
-    ):
-        cfg = _make_cfg(allow_final_merge=True)
-        client = _FakeBQClient()
-        client.set_schema(
-            "manglaria-staging.manglaria_lakehouse_ds.cf_s2_stage_test",
-            ["primary_key", "site_id", "timestamp", "NEE_f"],
-        )
-        client.set_schema(
-            "manglaria-staging._orch.cf_s2_runs",
-            ["run_id", "started_at", "finished_at", "status",
-             "stage_rows", "merge_attempted", "merge_authorized",
-             "watermark_advanced", "watermark_value"],
-        )
-        client.query_handler = lambda sql, job_config=None: _FakeQueryJob(
-            num_dml_affected_rows=10
-        )
-        self._patch_validate_pass(monkeypatch)
-
-        df = _make_processed_df()
-        result = run_writeback(
-            df, cfg, run_id="local-x", site_id="RBRL",
-            started_at="2026-04-26T20:00:00+00:00",
-            client=client,
-        )
-        assert result.status == wb.RUN_STATUS_SUCCEEDED
-        assert result.merge_attempted is True
-        assert result.merge_authorized is True
-        assert result.watermark_advanced is True
-        assert result.watermark_value is not None
-        assert client.inserted_rows[0]["status"] == wb.RUN_STATUS_SUCCEEDED
-
-    def test_validation_failure_records_validation_failed_and_raises(
-        self, monkeypatch
-    ):
-        cfg = _make_cfg(allow_final_merge=True)
-        client = _FakeBQClient()
-        client.set_schema(
-            "manglaria-staging._orch.cf_s2_runs",
-            ["run_id", "status", "started_at", "finished_at",
-             "stage_rows", "merge_attempted", "merge_authorized",
-             "watermark_advanced", "error_text"],
-        )
-
-        def _bad_validate(cfg, client=None):
-            raise WritebackValidationError(
-                "Stage validation failed: dup_primary_key=3",
-                metrics={"row_count": 100, "dup_primary_key": 3},
-            )
-
-        monkeypatch.setattr(wb, "validate_stage_table", _bad_validate)
-
-        with pytest.raises(WritebackValidationError):
-            run_writeback(
-                _make_processed_df(), cfg, run_id="local-x",
-                site_id="RBRL",
-                started_at="2026-04-26T20:00:00+00:00",
-                client=client,
-            )
-        assert client.inserted_rows
-        assert (
-            client.inserted_rows[0]["status"] == wb.RUN_STATUS_VALIDATION_FAILED
-        )
-        # Even on validation failure, MERGE was never attempted.
-        assert all(
-            not (
-                op[0] == "query"
-                and isinstance(op[1][0], str)
-                and op[1][0].startswith("MERGE ")
-                and "_s2_filt_1" in op[1][0]
-            )
-            for op in client.operations
-        )
-
-    def test_failed_merge_attaches_writeback_state_to_exception(
-        self, monkeypatch
-    ):
-        """M10 failure-path drift fix: when MERGE itself raises, the
-        re-raised exception must carry a ``miaproc_writeback_state``
-        attribute with ``merge_attempted=True`` so the CLI's best-effort
-        local ``run.json`` agrees with the authoritative
-        ``cf_s2_runs`` row."""
-        cfg = _make_cfg(allow_final_merge=True)
-        client = _FakeBQClient()
-        client.set_schema(
-            "manglaria-staging._orch.cf_s2_runs",
-            ["run_id", "status", "started_at", "finished_at",
-             "stage_rows", "merge_attempted", "merge_authorized",
-             "watermark_advanced", "error_text"],
-        )
-        self._patch_validate_pass(monkeypatch)
-
-        def _bad_merge(cfg, client=None):
-            raise RuntimeError("simulated MERGE failure")
-
-        monkeypatch.setattr(wb, "merge_stage_into_final", _bad_merge)
-
-        with pytest.raises(RuntimeError) as exc_info:
-            run_writeback(
-                _make_processed_df(), cfg, run_id="local-x",
-                site_id="RBRL",
-                started_at="2026-04-27T00:00:00+00:00",
-                client=client,
-            )
-        state = getattr(exc_info.value, "miaproc_writeback_state", None)
-        assert state is not None
-        assert state["merge_attempted"] is True
-        assert state["merge_authorized"] is True
-        assert state["status"] == wb.RUN_STATUS_FAILED
-
-    def test_validation_failure_state_records_no_merge_attempt(
-        self, monkeypatch
-    ):
-        """Counterpart: the validation-failure path must attach state
-        with ``merge_attempted=False`` (validation runs before merge)."""
-        cfg = _make_cfg(allow_final_merge=True)
-        client = _FakeBQClient()
-        client.set_schema(
-            "manglaria-staging._orch.cf_s2_runs",
-            ["run_id", "status", "started_at", "finished_at",
-             "stage_rows", "merge_attempted", "merge_authorized",
-             "watermark_advanced", "error_text"],
-        )
-
-        def _bad_validate(cfg, client=None):
-            raise WritebackValidationError(
-                "stage validation failed",
-                metrics={"row_count": 100, "dup_primary_key": 3},
-            )
-
-        monkeypatch.setattr(wb, "validate_stage_table", _bad_validate)
-        with pytest.raises(WritebackValidationError) as exc_info:
-            run_writeback(
-                _make_processed_df(), cfg, run_id="local-x",
-                site_id="RBRL",
-                started_at="2026-04-27T00:00:00+00:00",
-                client=client,
-            )
-        state = getattr(exc_info.value, "miaproc_writeback_state", None)
-        assert state is not None
-        assert state["merge_attempted"] is False
-        assert state["status"] == wb.RUN_STATUS_VALIDATION_FAILED
-
-    def test_forbidden_project_rejected_before_any_write(self, monkeypatch):
-        cfg = _make_cfg(output_project="manglaria")
-        client = _FakeBQClient()
-        with pytest.raises(ValueError, match="forbidden project"):
-            run_writeback(
-                _make_processed_df(), cfg, run_id="local-x",
-                site_id="RBRL",
-                started_at="2026-04-26T20:00:00+00:00",
-                client=client,
-            )
-        # Nothing was sent to the client.
-        assert client.operations == []
 
 
 # ---------------------------------------------------------------------------
@@ -917,19 +249,19 @@ class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
             axis=1,
         )
 
-    def test_bigquery_field_key_is_casefold(self):
-        assert bigquery_field_key("rH") == "rh"
-        assert bigquery_field_key("RH") == "rh"
-        assert bigquery_field_key("Rh") == "rh"
-        assert bigquery_field_key("rH_norm_s") == "rh_norm_s"
+    def test_column_field_key_is_casefold(self):
+        assert column_field_key("rH") == "rh"
+        assert column_field_key("RH") == "rh"
+        assert column_field_key("Rh") == "rh"
+        assert column_field_key("rH_norm_s") == "rh_norm_s"
         # Idempotent for already-lowercase / non-letter content.
-        assert bigquery_field_key("foo_bar_1") == "foo_bar_1"
+        assert column_field_key("foo_bar_1") == "foo_bar_1"
 
     def test_rh_case_collision_equivalent_collapses_to_canonical_rH(self):
         df = self._two_humidity_variants_equivalent()
         out, actions = ensure_unique_stage_columns(df)
         # Final payload has BigQuery-unique field keys.
-        keys = [bigquery_field_key(c) for c in out.columns]
+        keys = [column_field_key(c) for c in out.columns]
         assert len(set(keys)) == len(keys), list(out.columns)
         # The kept humidity column is canonicalized to ``rH``.
         assert "rH" in out.columns
@@ -949,7 +281,7 @@ class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
     def test_rh_case_collision_divergent_keeps_rH_and_rH_norm_s(self):
         df = self._two_humidity_variants_diverge()
         out, actions = ensure_unique_stage_columns(df)
-        keys = [bigquery_field_key(c) for c in out.columns]
+        keys = [column_field_key(c) for c in out.columns]
         assert len(set(keys)) == len(keys), list(out.columns)
         # Source ``RH`` is canonicalized to ``rH`` (the first
         # occurrence wins); the divergent derived ``rH`` is renamed.
@@ -979,7 +311,7 @@ class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
         # after the fix; the case-insensitive check did not pass
         # before M31.
         assert out.columns.is_unique
-        keys = [bigquery_field_key(c) for c in out.columns]
+        keys = [column_field_key(c) for c in out.columns]
         assert len(set(keys)) == len(keys), list(out.columns)
 
     def test_existing_rH_norm_s_still_uses_suffix_under_case_insensitivity(
@@ -1013,7 +345,7 @@ class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
         assert cols.count("rH") == 1
         assert HUMIDITY_DERIVED_RENAME in cols
         assert f"{HUMIDITY_DERIVED_RENAME}_2" in cols
-        keys = [bigquery_field_key(c) for c in cols]
+        keys = [column_field_key(c) for c in cols]
         assert len(set(keys)) == len(keys), cols
         assert any(
             a["renamed_to"] == f"{HUMIDITY_DERIVED_RENAME}_2"
@@ -1082,7 +414,7 @@ class TestEnsureUniqueStageColumnsCaseInsensitiveM31:
         )
         out, actions = ensure_unique_stage_columns(df)
         cols = list(out.columns)
-        keys = [bigquery_field_key(c) for c in cols]
+        keys = [column_field_key(c) for c in cols]
         assert len(set(keys)) == len(keys), cols
         assert "rH" in cols
         assert HUMIDITY_DERIVED_RENAME in cols
@@ -1133,7 +465,7 @@ class TestPrepareSilverStagePayloadCaseInsensitiveM31:
         payload, actions = prepare_silver_stage_payload(
             silver, site_id="RBRL"
         )
-        keys = [bigquery_field_key(c) for c in payload.columns]
+        keys = [column_field_key(c) for c in payload.columns]
         assert len(set(keys)) == len(keys), list(payload.columns)
         assert "RH" in payload.columns
         assert "RH_1_1_1" in payload.columns
@@ -1167,7 +499,7 @@ class TestPrepareSilverStagePayloadCaseInsensitiveM31:
         payload, actions = prepare_silver_stage_payload(
             silver, site_id="RBRL"
         )
-        keys = [bigquery_field_key(c) for c in payload.columns]
+        keys = [column_field_key(c) for c in payload.columns]
         assert len(set(keys)) == len(keys), list(payload.columns)
         assert "RH" in payload.columns
         assert "RH_1_1_1" in payload.columns
@@ -1178,7 +510,7 @@ class TestPrepareSilverStagePayloadCaseInsensitiveM31:
         assert list(payload["RH_1_1_1"]) == [55.0, 75.0, 85.0]
 
 
-class TestPrepareStageDataframeS2FiltOneMappingM31:
+class TestGoldStagePayloadLowercaseMappingM31:
     """M31: gold ``prepare_stage_dataframe`` renames source -> target
     rather than duplicating because BigQuery field keys are
     case-insensitive. Keeping both ``NEE_f`` and ``nee_f`` would
@@ -1203,7 +535,7 @@ class TestPrepareStageDataframeS2FiltOneMappingM31:
     def test_lowercase_targets_present_uppercase_backend_names_dropped(
         self,
     ):
-        out = prepare_stage_dataframe(
+        out = prepare_gold_stage_payload(
             self._gold_with_canonical_backend_outputs(),
             site_id="RBRL",
         )
@@ -1211,11 +543,11 @@ class TestPrepareStageDataframeS2FiltOneMappingM31:
             assert col in out.columns, col
         for col in ("NEE_f", "NEE_fqc", "Rg_f", "Tair_f", "VPD_f"):
             assert col not in out.columns, col
-        keys = [bigquery_field_key(c) for c in out.columns]
+        keys = [column_field_key(c) for c in out.columns]
         assert len(set(keys)) == len(keys), list(out.columns)
 
     def test_values_carry_through_rename(self):
-        out = prepare_stage_dataframe(
+        out = prepare_gold_stage_payload(
             self._gold_with_canonical_backend_outputs(),
             site_id="RBRL",
         )
@@ -1379,10 +711,9 @@ class TestPrepareSilverStagePayload:
         assert "timestamp" not in names
 
 
-class TestPrepareStageDataframeM28Preservation:
-    """M28: when ``preserve_payload_columns=True``, every silver
-    column survives into the gold stage payload even when the live
-    final-table schema is narrower."""
+class TestGoldStagePayloadM28Preservation:
+    """M28: every silver column survives into the gold stage payload
+    (no final-table target filter exists in the storage-neutral path)."""
 
     def _gold_with_silver(self) -> pd.DataFrame:
         return pd.DataFrame(
@@ -1406,20 +737,13 @@ class TestPrepareStageDataframeM28Preservation:
             }
         )
 
-    def test_preserves_silver_only_columns_when_preserve_true(self):
-        narrow_target = [
-            "primary_key", "site_id", "timestamp",
-            "dateAndTime", "nee_f", "nee_fqc",
-            "sw_in_f", "ta_f", "vpd_f",
-        ]
-        out = prepare_stage_dataframe(
+    def test_preserves_silver_only_columns(self):
+        out = prepare_gold_stage_payload(
             self._gold_with_silver(),
             site_id="RBRL",
-            target_columns=narrow_target,
-            preserve_payload_columns=True,
         )
-        # Silver-only sentinel is preserved even though it's not in
-        # the narrow final-table target.
+        # Silver-only sentinel is preserved (no final-table target
+        # filter exists in the storage-neutral path).
         assert "silver_only_flag" in out.columns
         assert "rH" in out.columns
         assert "H" in out.columns
@@ -1430,24 +754,6 @@ class TestPrepareStageDataframeM28Preservation:
         for col in ("primary_key", "site_id", "timestamp"):
             assert col in out.columns, col
 
-    def test_legacy_filter_still_works_when_preserve_false(self):
-        """Existing M10 callers that pass ``target_columns`` and rely
-        on it for filtering keep their behavior so long as they don't
-        opt into M28 preservation."""
-        narrow_target = [
-            "primary_key", "site_id", "timestamp",
-            "dateAndTime", "nee_f", "nee_fqc",
-            "sw_in_f", "ta_f", "vpd_f",
-        ]
-        out = prepare_stage_dataframe(
-            self._gold_with_silver(),
-            site_id="RBRL",
-            target_columns=narrow_target,
-            preserve_payload_columns=False,
-        )
-        # Silver-only sentinel is dropped under legacy filtering.
-        assert "silver_only_flag" not in out.columns
-        assert "rH" not in out.columns
 
     def test_collision_actions_recorded_in_attrs(self):
         # Build a gold-with-silver frame that carries a duplicate rH.
@@ -1455,10 +761,9 @@ class TestPrepareStageDataframeM28Preservation:
         df = pd.concat(
             [df, pd.Series([55.0, 75.0, 85.0]).rename("rH")], axis=1
         )
-        out = prepare_stage_dataframe(
+        out = prepare_gold_stage_payload(
             df,
             site_id="RBRL",
-            preserve_payload_columns=True,
         )
         assert out.columns.is_unique
         assert HUMIDITY_DERIVED_RENAME in out.columns
@@ -1476,6 +781,117 @@ class TestPrepareStageDataframeM28Preservation:
             [df, pd.Series([4.0, 5.0, 6.0]).rename("GPP")], axis=1
         )
         with pytest.raises(DuplicateStageColumnsError):
-            prepare_stage_dataframe(
-                df, site_id="RBRL", preserve_payload_columns=True,
+            prepare_gold_stage_payload(
+                df, site_id="RBRL",
             )
+
+
+class TestGoldStagePayload:
+    """Neutral gold payload (``prepare_gold_stage_payload``): identity,
+    lineage ``gold_derived`` lowercase names and ``dateAndTime`` derived
+    from the backend output (formerly asserted on the BigQuery
+    ``prepare_stage_dataframe``)."""
+
+    def _processed(self, n: int = 3) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "DateTime": pd.date_range(
+                    "2025-08-01", periods=n, freq="30min", tz="UTC"
+                ),
+                "NEE": [0.1, 0.2, 0.3],
+                "NEE_f": [0.11, 0.21, 0.31],
+                "NEE_fqc": [0, 0, 0],
+                "GPP": [0.0, 1.0, 2.0],
+                "Reco": [1.0, 1.0, 1.0],
+                "Tair": [20.0, 21.0, 22.0],
+                "Tair_f": [20.5, 21.5, 22.5],
+                "Rg": [0.0, 100.0, 200.0],
+                "Rg_f": [0.0, 100.0, 200.0],
+                "VPD": [5.0, 6.0, 7.0],
+                "VPD_f": [5.1, 6.1, 7.1],
+                "USTAR": [0.2, 0.3, 0.4],
+            }
+        )
+
+
+    def test_lowercase_analytical_columns_and_dateAndTime(self):
+        out = prepare_gold_stage_payload(self._processed(), site_id="RBRL")
+        for col in ("nee_f", "nee_fqc", "sw_in_f", "ta_f", "vpd_f", "dateAndTime"):
+            assert col in out.columns, f"missing column {col}"
+        assert out["nee_f"].iloc[0] == 0.11  # from NEE_f
+        assert out["sw_in_f"].iloc[1] == 100.0  # from Rg_f
+        assert out["ta_f"].iloc[2] == 22.5  # from Tair_f
+        # dateAndTime is the ISO-style STRING form.
+        assert out["dateAndTime"].iloc[0] == "2025-08-01 00:00:00"
+        # Identity is materialized.
+        assert (out["site_id"] == "RBRL").all()
+        assert out["primary_key"].is_unique
+
+
+
+    def test_caller_frames_are_not_mutated(self):
+        proc = self._processed()
+        proc_before = proc.copy(deep=True)
+        _ = prepare_gold_stage_payload(proc, site_id="RBRL")
+        pd.testing.assert_frame_equal(proc, proc_before)
+
+    def test_missing_datetime_raises(self):
+        with pytest.raises(ValueError, match="missing the 'DateTime' column"):
+            prepare_gold_stage_payload(
+                pd.DataFrame({"NEE_f": [0.1]}), site_id="RBRL"
+            )
+
+
+class TestLocalGoldSourceIdentity:
+    """Source identity through the file-workflow gold payload.
+
+    Replaces the BigQuery source-flux-join identity assertion: rows with
+    a source record keep the source ``primary_key`` (strings and integer
+    IDs above 2**53 without precision loss), the regularized gap row has
+    a valid regular-grid ``timestamp`` and the uniform group ``site_id``,
+    and its source measurements stay missing (never zero or fabricated).
+    """
+
+    @pytest.mark.parametrize(
+        "keys",
+        [
+            ["src-pk-A", "src-pk-B", None],
+            pd.array([2**53 + 1, 2**53 + 3, pd.NA], dtype="Int64"),
+        ],
+        ids=["string_keys", "int64_keys_above_2_53"],
+    )
+    def test_source_primary_key_carried_and_gap_row_measurements_missing(self, keys):
+        grid = pd.date_range("2025-08-01", periods=3, freq="30min", tz="UTC")
+        gold = pd.DataFrame(
+            {
+                "primary_key": keys,
+                "site_id": ["RBRL", "RBRL", "RBRL"],
+                "timestamp": grid,
+                "DateTime": grid,
+                "co2_flux": [0.1, 0.2, np.nan],
+                "air_temperature_c": [20.0, 21.0, np.nan],
+                "u_star": [0.21, 0.22, np.nan],
+                "NEE": [0.1, 0.2, np.nan],
+                "NEE_f": [0.11, 0.21, 0.31],
+                "Reco": [1.0, 1.0, 1.0],
+                "GPP": [0.0, 1.0, 2.0],
+            }
+        )
+        before = gold.copy(deep=True)
+        out, _ = prepare_local_gold_payload(gold)
+        pd.testing.assert_frame_equal(gold, before)
+        assert list(out.columns[:3]) == ["primary_key", "site_id", "timestamp"]
+        assert out["primary_key"].iloc[0] == keys[0]
+        assert out["primary_key"].iloc[1] == keys[1]
+        # Gap row: nothing synthesized for the key, valid grid timestamp,
+        # uniform site identity, missing measurements stay missing.
+        assert pd.isna(out["primary_key"].iloc[2])
+        assert out["timestamp"].iloc[2] == pd.Timestamp("2025-08-01 01:00", tz="UTC")
+        assert (out["site_id"] == "RBRL").all()
+        assert out["co2_flux"].iloc[0] == 0.1
+        for col in ("co2_flux", "air_temperature_c", "u_star"):
+            assert pd.isna(out[col].iloc[2]), col
+        # Backend gap-filled output is kept under its lowercase name.
+        assert out["nee_f"].iloc[2] == 0.31
+        assert list(out.columns).count("timestamp") == 1
+        assert "DateTime" not in out.columns
